@@ -1,0 +1,72 @@
+discussion_id,people_id,sentiment,reason,industry
+concert_Meeting_7_Discussion,Ed Helpsford,0.5,Believes concerts can bring community together but cautious about potential disruptions.,['tourism']
+low_volume_crane_Meeting_3_Proposal_Discussion,Ed Helpsford,1,"Beneficial for small time fishers, who he feels are often overlooked",['small vessel']
+affordable_housing_Meeting_10_Travel_Findings_Discussion,Ed Helpsford,1,Feels committee should be doing more for blue-collar workers. Nephew is having trouble finding housing,"['large vessel', 'small vessel']"
+waterfront_market_Meeting_9_Report_Discussion,Ed Helpsford,1,Strongly supports as it could benefit small vessel,['tourism']
+low_volume_crane_Travel_Harbor_Route_Solutions_Completed_Discussion_Crane,Seal,0.1,Recognizes the crane's benefit to small-scale operations.,['small vessel']
+fish_vacuum_Meeting_3_Report_Discussion,Teddy Goldstein,0.5,Useful for fishing operations but may have environmental concerns.,['large vessel']
+affordable_housing_Travel_Waveside_Townhomes_Completed_Discussion,Ed Helpsford,1,Feels committee should be doing more for blue-collar workers. Nephew is having trouble finding housing,"['large vessel', 'small vessel']"
+expanding_tourist_wharf_Meeting_9_Start_Report_Discussion,Teddy Goldstein,-0.5,Seen as prioritizing tourism over fishing-related infrastructure.,['tourism']
+expanding_tourist_wharf_Meeting_9_Start_Report_Discussion,Seal,0.1,"Seems like headache, but if other people are willing to do the work.",['tourism']
+expanding_tourist_wharf_Meeting_10_Report_Update_Discussion,Teddy Goldstein,-0.5,Seen as prioritizing tourism over fishing-related infrastructure.,['tourism']
+statue_john_smoth_Travel_The_Bait_Stich_Discussion,Seal,0.2,Appreciates historical recognition but sees limited practical benefit.,[]
+affordable_housing_Travel_Tidewater_Flats_Discussion,Teddy Goldstein,1,Strongly supports affordable housing for workers.,"['large vessel', 'small vessel']"
+new_crane_lomark_Meeting_8_Share_Findings_Discussion,Teddy Goldstein,1,Essential for improving efficiency in fishing operations.,['large vessel']
+affordable_housing_Travel_Tidewater_Flats_Completed_Discussion,Teddy Goldstein,1,Strongly supports affordable housing for workers.,"['large vessel', 'small vessel']"
+affordable_housing_Meeting_8_Gather_Feedback_Discussion,Ed Helpsford,1,Feels committee should be doing more for blue-collar workers. Nephew is having trouble finding housing,"['large vessel', 'small vessel']"
+name_inspection_office_Meeting_9_Community_Vote_Discussion,Ed Helpsford,0,Supportive but also feels it is a distraction,[]
+expanding_tourist_wharf_Meeting_7_Initial_Views_Discussion,Seal,0.1,"Seems like headache, but if other people are willing to do the work.",['tourism']
+expanding_tourist_wharf_Meeting_11_Report_Update_Discussion,Teddy Goldstein,-0.5,Seen as prioritizing tourism over fishing-related infrastructure.,['tourism']
+marine_life_deck_Meeting_12_Environmental_Impact_Report_Discussion,Teddy Goldstein,-0.5,Prefers resources to be allocated toward the fishing industry.,['tourism']
+low_volume_crane_Meeting_8_Report_Discussion,Seal,0.1,Recognizes the crane's benefit to small-scale operations.,['small vessel']
+deep_fishing_dock_Meeting_4_Recommendation_Discussion,Teddy Goldstein,,,
+deep_fishing_dock_Meeting_4_Findings_Report_Discussion,Teddy Goldstein,,,
+concert_Meeting_16_Road_Closures_Discussion,Ed Helpsford,0.5,Believes concerts can bring community together but cautious about potential disruptions.,['tourism']
+name_harbor_area_Meeting_12_Public_Opinion_Discussion,Ed Helpsford,0,Supportive but also feels it is a distraction,[]
+affordable_housing_Meeting_7_Debate_Discussion,Ed Helpsford,1,Feels committee should be doing more for blue-collar workers. Nephew is having trouble finding housing,"['large vessel', 'small vessel']"
+fish_vacuum_Meeting_1_Introduction_Discussion,Teddy Goldstein,0.5,Useful for fishing operations but may have environmental concerns.,['large vessel']
+expanding_tourist_wharf_Meeting_8_Expand_Ideas_Discussion,Seal,0.1,"Seems like headache, but if other people are willing to do the work.",['tourism']
+low_volume_crane_Travel_Harbor_Route_Solutions_Discussion,Seal,0.1,Recognizes the crane's benefit to small-scale operations.,['small vessel']
+new_crane_lomark_Meeting_5_Cost_Impact_Report_Discussion,Teddy Goldstein,1,Essential for improving efficiency in fishing operations.,['large vessel']
+deep_fishing_dock_Meeting_3_Maintenance_Plan_Discussion,Teddy Goldstein,,,
+expanding_tourist_wharf_Travel_Harbor_Route_Solutions_Discussion_Tourist,Simone Kat,0.5,Supports tourism growth,['tourism']
+expanding_tourist_wharf_Travel_Harbor_Route_Solutions_Completed_Discussion_Tourist,Simone Kat,0.5,Supports tourism growth,['tourism']
+deep_fishing_dock_Travel_High_Seas_Fishing_Inc_Discussion,Simone Kat,,,
+deep_fishing_dock_Travel_High_Seas_Fishing_Inc_Completed_Discussion,Simone Kat,,,
+new_crane_lomark_Travel_Blue_Wave_Shipping_Discussion,Simone Kat,-0.5,"Primarily benefits large vessel operations, with limited relevance to tourism",['large vessel']
+new_crane_lomark_Travel_Blue_Wave_Shipping_Completed_Discussion,Simone Kat,-0.5,"Primarily benefits large vessel operations, with limited relevance to tourism",['large vessel']
+fish_vacuum_Travel_Bay_Harvest_Corporation_Discussion,Simone Kat,-0.1,Would rather see money go to tourism initiatives,['large vessel']
+fish_vacuum_Travel_Bay_Harvest_Corporation_Completed_Discussion,Simone Kat,-0.1,Would rather see money go to tourism initiatives,['large vessel']
+low_volume_crane_Travel_Harbor_Builders_Discussion,Simone Kat,0.75,"Supports small-scale operations, which align with small vessel activities and tourism. Tourism is increasingly focused on small scale pictureque fishing",['small vessel']
+low_volume_crane_Travel_Haacklee_Assembly_Co_Discussion,Simone Kat,0.75,"Supports small-scale operations, which align with small vessel activities and tourism. Tourism is increasingly focused on small scale pictureque fishing",['small vessel']
+low_volume_crane_Travel_Harbor_Builders_Completed_Discussion,Simone Kat,0.75,"Supports small-scale operations, which align with small vessel activities and tourism. Tourism is increasingly focused on small scale pictureque fishing",['small vessel']
+low_volume_crane_Travel_Haacklee_Assembly_Co_Completed_Discussion,Simone Kat,0.75,"Supports small-scale operations, which align with small vessel activities and tourism. Tourism is increasingly focused on small scale pictureque fishing",['small vessel']
+affordable_housing_Travel_Waveside_Townhomes_Discussion,Simone Kat,-1,Conflicts with tourism-focused short-term rentals,"['large vessel', 'small vessel']"
+affordable_housing_Meeting_7_Debate_Discussion,Simone Kat,-1,Conflicts with tourism-focused short-term rentals,"['large vessel', 'small vessel']"
+renaming_park_himark_Travel_Himark_City_Hall_Discussion,Carol Limpet,0.5,Symbolic gesture that could attract tourists and improve community pride.,[]
+renaming_park_himark_Meeting_5_Nominations_Discussion,Carol Limpet,0.5,Symbolic gesture that could attract tourists and improve community pride.,[]
+renaming_park_himark_Travel_Himark_City_Hall_Completed_Discussion,Carol Limpet,0.5,Symbolic gesture that could attract tourists and improve community pride.,[]
+name_inspection_office_Meeting_8_Proposal_Discussion,Simone Kat,0,Symbolic gesture with no direct impact on tourism or vessel operations.,[]
+name_inspection_office_Travel_Lomark_Civic_Plaza_Completed_Discussion,Simone Kat,0,Symbolic gesture with no direct impact on tourism or vessel operations.,[]
+marine_life_deck_Meeting_10_Initial_Ideas_Discussion,Simone Kat,1,"Strongly supports as it could be a major attraction, benefiting tourism.",['tourism']
+marine_life_deck_Meeting_10_Initial_Ideas_Discussion,Carol Limpet,0.5,Sees educational value but concerned about sustainable funding.,['tourism']
+marine_life_deck_Travel_Tropics_Environmental_Hub_Discussion,Carol Limpet,0.5,Sees educational value but concerned about sustainable funding.,['tourism']
+marine_life_deck_Meeting_11_Feedback_Discussion,Carol Limpet,0.5,Sees educational value but concerned about sustainable funding.,['tourism']
+marine_life_deck_Travel_Tropics_Environmental_Hub_Completed_Discussion,Carol Limpet,0.5,Sees educational value but concerned about sustainable funding.,['tourism']
+marine_life_deck_Meeting_12_Detailed_Proposal_Discussion,Simone Kat,1,"Strongly supports as it could be a major attraction, benefiting tourism.",['tourism']
+seafood_festival_Meeting_1_Discussion,Simone Kat,0.75,Sees great potential in drawing tourists and celebrating local cuisine.,"['tourism', 'small vessel']"
+seafood_festival_Meeting_1_Discussion,Carol Limpet,0.75,Supports as it offers community and economic benefits.,"['tourism', 'small vessel']"
+seafood_festival_Travel_Dock_Roll_Hall_of_Fame_Discussion,Carol Limpet,0.75,Supports as it offers community and economic benefits.,"['tourism', 'small vessel']"
+seafood_festival_Meeting_2_Feedback_Discussion,Carol Limpet,0.75,Supports as it offers community and economic benefits.,"['tourism', 'small vessel']"
+seafood_festival_Travel_Dock_Roll_Hall_of_Fame_Completed_Discussion,Carol Limpet,0.75,Supports as it offers community and economic benefits.,"['tourism', 'small vessel']"
+seafood_festival_Meeting_3_Take_Action_Discussion,Simone Kat,0.75,Sees great potential in drawing tourists and celebrating local cuisine.,"['tourism', 'small vessel']"
+heritage_walking_tour_Meeting_7_Discussion,Simone Kat,1,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
+heritage_walking_tour_Travel_Captain_Market_Discussion,Simone Kat,1,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
+heritage_walking_tour_Meeting_8_Proposal_Discussion,Simone Kat,1,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
+heritage_walking_tour_Travel_Captain_Market_Completed_Discussion,Simone Kat,1,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
+heritage_walking_tour_Meeting_9_Report_Discussion,Simone Kat,1,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
+heritage_walking_tour_Meeting_9_Take_Action_Discussion,Simone Kat,1,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
+waterfront_market_Meeting_7_Discussion,Simone Kat,0.75,Supports as it aligns well with tourism and local economic growth.,['tourism']
+waterfront_market_Meeting_7_Discussion,Carol Limpet,1,Strongly supports as it aligns with community and economic interests.,['tourism']
+waterfront_market_Travel_Harbor_Edge_Grill_Discussion,Carol Limpet,1,Strongly supports as it aligns with community and economic interests.,['tourism']
+waterfront_market_Travel_Harbor_Edge_Grill_Completed_Discussion,Carol Limpet,1,Strongly supports as it aligns with community and economic interests.,['tourism']

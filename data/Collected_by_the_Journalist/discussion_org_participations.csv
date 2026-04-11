@@ -1,0 +1,24 @@
+discussion_id,organization_id,sentiment,reason,industry
+expanding_tourist_wharf_Meeting_7_Initial_Views_Discussion,Tours Central Ticketing,1,More tourism so more tickets sold.,['tourism']
+expanding_tourist_wharf_Meeting_7_Initial_Views_Discussion,Paackland Container Inc.,-0.5,Tourism is a competitor for the same resources.,['tourism']
+expanding_tourist_wharf_Meeting_8_Expand_Ideas_Discussion,Tours Central Ticketing,1,More tourism so more tickets sold.,['tourism']
+expanding_tourist_wharf_Meeting_8_Expand_Ideas_Discussion,Paackland Container Inc.,-0.5,Tourism is a competitor for the same resources.,['tourism']
+statue_john_smoth_Meeting_8_Proposal_Discussion,Daughters of Port Grove,1,Historical recognition aligns with tourism interests.,[]
+deep_fishing_dock_Meeting_2_Importance_Discussion,High Seas Fishing Inc.,,,
+deep_fishing_dock_Meeting_2_Importance_Discussion,Tours Central Ticketing,,,
+deep_fishing_dock_Meeting_3_Maintenance_Plan_Discussion,Industrial Shipping,,,
+deep_fishing_dock_Meeting_4_Findings_Report_Discussion,Industrial Shipping,,,
+new_crane_lomark_Meeting_4_Cost_Analysis_Discussion,Industrial Shipping,1.0,"Primarily benefits large vessel operations, which are essential for the organization.",['large vessel']
+new_crane_lomark_Meeting_4_Cost_Analysis_Discussion,Tours Central Ticketing,-1,"Primarily benefits fishing operations, not tourism.",['large vessel']
+new_crane_lomark_Meeting_4_Cost_Analysis_Discussion,Saltwater Serenades,-1,"Primarily benefits fishing operations, not tourism.",['large vessel']
+fish_vacuum_Meeting_1_Introduction_Discussion,High Seas Fishing Inc.,1,"Small vessels are the backbone of the company, and this improves operations.",['small vessel']
+fish_vacuum_Meeting_2_Cost_Benefit_Analysis_Discussion,High Seas Fishing Inc.,1,"Small vessels are the backbone of the company, and this improves operations.",['small vessel']
+affordable_housing_Meeting_6_Sites_Proposal_Discussion,Builders Association,1.0,"Supports affordable housing for workers, which benefits large vessel operations.","['large vessel', 'small vessel']"
+affordable_housing_Meeting_6_Sites_Proposal_Discussion,Saltwater Serenades,-1,Conflicts with tourism-focused short-term rentals.,"['large vessel', 'small vessel']"
+affordable_housing_Meeting_8_Gather_Feedback_Discussion,Industrial Shipping,1.0,"Supports affordable housing for workers, which benefits large vessel operations.","['large vessel', 'small vessel']"
+affordable_housing_Meeting_9_Invite_Developers_Discussion,Builders Association,1.0,"Supports affordable housing for workers, which benefits large vessel operations.","['large vessel', 'small vessel']"
+affordable_housing_Meeting_9_Invite_Developers_Discussion,Industrial Shipping,1.0,"Supports affordable housing for workers, which benefits large vessel operations.","['large vessel', 'small vessel']"
+renaming_park_himark_Meeting_4_Name_Ideas_Discussion,PTA,0,Symbolic gesture with no direct impact on children or education.,[]
+name_harbor_area_Meeting_10_Historical_Significance_Discussion,Daughters of Port Grove,0,Symbolic gesture with no direct impact on tourism or vessel operations.,[]
+name_inspection_office_Meeting_8_Importance_Discussion,High Seas Fishing Inc.,0,Symbolic gesture with no direct impact on fishing or vessel operations.,[]
+heritage_walking_tour_Meeting_7_Discussion,Daughters of Port Grove,0.5,Believes it will enhance the cultural appeal and attract more visitors.,['tourism']
