@@ -1,5 +1,3 @@
 # Interactive notebooks (https://marimo.io)
 marimo
 pandas
-matplotlib
-networkx
