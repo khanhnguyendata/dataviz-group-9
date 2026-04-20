@@ -27,10 +27,10 @@ def _(mo):
             The interactive widget below spans the full browser width with three narrow lists — **plans** (left, showing each plan's long title), **people** (middle), and **places** (right) — separated by wide line bands. Each list is subdivided by section headers:
 
             - **people** grouped by `role`
-            - **plans** grouped first by `topic` (from `plan_topics.csv` joined with `topics.csv`), then nested by `plan_type` (normalized to Title Case so labels like `Report` / `report` and `Take Action` / `take action` merge into a single sub-group)
+            - **plans** grouped by `topic` (from `plan_topics.csv` joined with `topics.csv`); each plan row is prefixed with an emoji indicating its `plan_type` (🗣️ Discussion, 💬 Feedback, 📄 Report, ✊ Take Action, 🚗 Travel, 📊 Presentation, 📝 Proposal)
             - **places** grouped by `zone`
 
-            All plans and places are rendered in full inside the widget — the widget does not scroll internally, so an edge's endpoint always lands exactly on its row. Scroll the notebook page to traverse the widget vertically. Click any row to isolate its links; click again (or any blank area) to clear.
+            All plans and places are rendered in full inside the widget — the widget does not scroll internally, so an edge's endpoint always lands exactly on its row. Scroll the notebook page to traverse the widget vertically. Click any row to isolate its links (clicking a person also highlights the places reachable via that person's plans); click again or any blank area to clear.
 
             **Row fill** (one per entity) encodes where that entity is recorded:
 
@@ -49,14 +49,14 @@ def _(mo):
             | Amber  | **Partial** — *people ↔ places* only: board admits the visit but records fewer trips than the journalist |
             | Red    | **Journalist only** — no board record at all |
 
-            **Line style** encodes plan attribution (only varies on *people ↔ places* edges):
+            **Line style** encodes plan attribution:
 
             | Line style | Meaning |
             |------------|---------|
-            | Solid  | **Plan-attributable** — some plan lists both the person (via `plan_people_participations`) and the place (via `travel_links`) |
-            | Dashed | **Off-plan** — no plan in either dataset covers this (person, place) pair |
+            | Dotted | **Plan-attributable** — for `people ↔ places` edges: some plan lists both the person and the place; for `plans ↔ people` edges: the plan is a Travel plan; all `plans ↔ places` edges are always dotted |
+            | Solid  | **Off-plan** — no plan in either dataset covers this (person, place) pair |
 
-            Edges between `people ↔ plans` and `plans ↔ places` are always solid (they come directly from `plan_people_participations.csv` and `travel_links.csv`, so plan attribution is trivial). The `people ↔ places` edges are derived from `trip_people.csv ⋈ trip_places.csv` on `trip_id`.
+            The `people ↔ places` edges are derived from `trip_people.csv ⋈ trip_places.csv` on `trip_id`.
             """
         ).strip()
     )
@@ -99,6 +99,15 @@ def _(mo):
         for pid, st in zip(_plan_topic_df["plan_id"], _plan_topic_df["short_topic"])
     }
 
+    # Build plan_id -> earliest meeting number so plans sort by when they appeared
+    _mp_df = read_csv(JOURNAL / "meeting_plans.csv")
+    _mp_df["_num"] = pd.to_numeric(
+        _mp_df["meeting_id"].str.extract(r"(\d+)", expand=False), errors="coerce"
+    ).fillna(999)
+    PLAN_MEETING_NUM: dict[str, int] = (
+        _mp_df.groupby(_mp_df["plan_id"].str.strip())["_num"].min().astype(int).to_dict()
+    )
+
     def group_subgroup(table: str, row: pd.Series) -> tuple[str, str | None]:
         if table == "plans":
             plan_id = str(row["plan_id"]).strip()
@@ -123,11 +132,23 @@ def _(mo):
             return "journal_only"
         return "both"
 
+    PLAN_TYPE_EMOJI = {
+        "Discussion": "\U0001f5e3\ufe0f",
+        "Feedback": "\U0001f4ac",
+        "Report": "\U0001f4c4",
+        "Take Action": "\u270a",
+        "Travel": "\U0001f697",
+        "Presentation": "\U0001f4ca",
+        "Proposal": "\U0001f4dd",
+    }
+
     def display_name(table: str, row: pd.Series) -> str:
         if table in ("people", "places"):
             return str(row["name"]).strip()
         if table == "plans":
-            return str(row["long_title"]).strip()
+            ptype = str(row["plan_type"]).strip().title()
+            emoji = PLAN_TYPE_EMOJI.get(ptype, "\u25cf")
+            return f"{emoji} {str(row['long_title']).strip()}"
         return "?"
 
     people_b = read_csv(BOARD / "people.csv")
@@ -173,7 +194,7 @@ def _(mo):
         entries.sort(
             key=lambda e: (
                 e["group"].lower(),
-                (e["subgroup"] or "").lower(),
+                PLAN_MEETING_NUM.get(e["id"], 999),
                 ROW_MEMBERSHIP_ORDER[e["membership"]],
                 e["label"].lower(),
             )
@@ -256,9 +277,15 @@ def _(mo):
     # Journalist is the superset, so use its plan-attribution set as the canonical reference.
     plan_attr = plan_attributable_set(JOURNAL)
 
+    # plan_id -> Title-Cased plan_type (used to decide dotted vs solid on plans<->people edges)
+    PLAN_TYPE_MAP = {
+        str(r["plan_id"]).strip(): str(r["plan_type"]).strip().title()
+        for _, r in plans_j.iterrows()
+    }
+
     edges_data: list[dict] = []
 
-    # plans <-> people: binary (both / journal_only), always plan-attributable
+    # plans <-> people: dotted only when the plan is a Travel plan
     for plan_id, people_id in sorted(pp_board | pp_journ):
         in_board = (plan_id, people_id) in pp_board
         in_journ = (plan_id, people_id) in pp_journ
@@ -275,7 +302,7 @@ def _(mo):
                 "b_table": "people",
                 "b_id": people_id,
                 "membership": membership,
-                "plan_attributable": True,
+                "plan_attributable": PLAN_TYPE_MAP.get(plan_id, "") == "Travel",
                 "n_trips_both": None,
                 "n_trips_journ_only": None,
             }
@@ -378,13 +405,13 @@ def _(mo):
         {"tables": tables_data, "edges": edges_data}, ensure_ascii=False
     )
 
-    ROW_H, HDR_H, COL_HDR_H, COL_PAD, SUB_HDR_H = 14, 18, 32, 24, 14
+    ROW_H, HDR_H, COL_HDR_H, COL_PAD, GROUP_GAP = 14, 18, 32, 24, 30
     column_heights = []
-    for entries in tables_data.values():
+    for t, entries in tables_data.items():
         n_groups = len({e["group"] for e in entries})
-        n_subs = len({(e["group"], e["subgroup"]) for e in entries if e.get("subgroup")})
+        row_h = ROW_H * 2 if t == "plans" else ROW_H  # plans rows may wrap to ~2 lines
         column_heights.append(
-            len(entries) * ROW_H + n_groups * HDR_H + n_subs * SUB_HDR_H
+            len(entries) * row_h + n_groups * HDR_H + max(0, n_groups - 1) * GROUP_GAP
         )
     iframe_height = max(column_heights) + COL_HDR_H + COL_PAD + 40
 
@@ -400,9 +427,10 @@ def _(mo):
     padding: 12px;
     height: 100%;
     display: grid;
-    grid-template-columns: 180px 1fr 140px 1fr 180px;
+    grid-template-columns: 360px 1fr 140px 1fr 180px;
     grid-template-areas: "plans . people . places";
     column-gap: 0;
+    align-items: center;
   }
   .column[data-table="plans"]  { grid-area: plans; }
   .column[data-table="people"] { grid-area: people; }
@@ -417,12 +445,11 @@ def _(mo):
     background: #e2e8f0; border-bottom: 1px solid #cbd5e1;
   }
   .list {
-    flex: 1;
-    overflow: hidden;
     padding: 4px 6px;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   .list-inner {
     display: flex;
@@ -431,6 +458,7 @@ def _(mo):
     width: 100%;
   }
   .group { display: flex; flex-direction: column; }
+  .group + .group { margin-top: 20px; }
   .group-header {
     background: #f1f5f9;
     color: #334155;
@@ -440,15 +468,6 @@ def _(mo):
     letter-spacing: 0.04em;
     padding: 2px 4px;
     border-bottom: 1px solid #cbd5e1;
-    margin-top: 4px;
-  }
-  .group-header:first-child { margin-top: 0; }
-  .subgroup { display: flex; flex-direction: column; }
-  .subgroup-header {
-    font-size: 9px; font-weight: 600; color: #475569;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 1px 4px 1px 10px;
-    line-height: 12px;
   }
   .row {
     display: block; font-size: 11px; line-height: 13px;
@@ -459,9 +478,16 @@ def _(mo):
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     transition: opacity .15s, box-shadow .15s, filter .15s;
   }
+  .column[data-table="plans"] .row {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 15px;
+    padding-bottom: 3px;
+  }
   .row + .row { margin-top: 0; }
   .row.m-both         { background: #f1f5f9; color: #0f172a; }
-  .row.m-journal_only { background: #ef4444; color: #fff1f1; }
+  .row.m-journal_only { background: #ede9fe; color: #3b0764; }
   .row.m-both + .row.m-both { box-shadow: inset 0 1px 0 #e2e8f0; }
   .row:hover { box-shadow: 0 0 0 2px #3b82f6; }
   .container.has-selection .row { opacity: 0.18; }
@@ -475,17 +501,18 @@ def _(mo):
     transition: stroke-opacity .15s, stroke-width .15s;
   }
   .overlay line.line-both         { stroke: #64748b; }
-  .overlay line.line-partial      { stroke: #f59e0b; }
-  .overlay line.line-journal_only { stroke: #b91c1c; }
-  .overlay line.off-plan          { stroke-dasharray: 5 4; }
+  .overlay line.line-partial      { stroke: #0891b2; }
+  .overlay line.line-journal_only { stroke: #7c3aed; }
+  .overlay line.off-plan          { stroke-dasharray: none; }
+  .overlay line.on-plan           { stroke-dasharray: 2 4; }
   .container.has-selection .overlay line         { stroke-opacity: 0.04; }
   .container.has-selection .overlay line.active  { stroke-opacity: 1.0; stroke-width: 2.5; }
   .overlay line.active { stroke-opacity: 0.95; stroke-width: 2; }
   .legend {
-    position: absolute; right: 18px; bottom: 14px;
+    position: absolute; left: 50%; transform: translateX(-50%); top: 14px;
     font-size: 11px; color: #334155;
     background: rgba(255,255,255,0.94); padding: 8px 10px; border-radius: 6px;
-    border: 1px solid #cbd5e1; pointer-events: none; max-width: 360px;
+    border: 1px solid #cbd5e1; pointer-events: none; max-width: 540px;
     line-height: 1.5;
   }
   .legend .group-label { display: block; font-weight: 700; margin-top: 2px; color: #0f172a; }
@@ -494,13 +521,13 @@ def _(mo):
     margin-right: 4px; vertical-align: middle; border: 1px solid #94a3b8;
   }
   .legend .sw.both        { background: #f8fafc; }
-  .legend .sw.partial     { background: #f59e0b; }
-  .legend .sw.journal     { background: #ef4444; }
+  .legend .sw.partial     { background: #0891b2; }
+  .legend .sw.journal     { background: #7c3aed; }
   .legend .line-sw {
     display: inline-block; width: 22px; height: 0; margin-right: 4px;
     vertical-align: middle; border-top: 2px solid #334155;
   }
-  .legend .line-sw.dashed { border-top-style: dashed; }
+  .legend .line-sw.dotted { border-top-style: dotted; }
   .hint { margin-top: 6px; opacity: 0.8; }
 </style>
 </head>
@@ -525,9 +552,9 @@ def _(mo):
     <span style="margin-left:8px"><span class="sw partial"></span>Partial (board undercounts trips)</span>
     <span style="margin-left:8px"><span class="sw journal"></span>Journalist only</span>
     <span class="group-label">Line style (plan attribution)</span>
-    <span><span class="line-sw"></span>Plan-attributable</span>
-    <span style="margin-left:8px"><span class="line-sw dashed"></span>Off-plan</span>
-    <div class="hint">Click a row to isolate its links. Click again (or any blank area) to clear.</div>
+    <span><span class="line-sw dotted"></span>Planned trips</span>
+    <span style="margin-left:8px"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
+    <div class="hint">Click any row to isolate its links; click a blank area to clear. Clicking a person also highlights the plan↔place links for their planned trips.</div>
   </div>
 </div>
 <script>
@@ -548,13 +575,10 @@ def _(mo):
     const listInner = document.createElement("div");
     listInner.className = "list-inner";
     let currentGroup = null;
-    let currentSub = null;
     let groupEl = null;
-    let subEl = null;
     for (const e of ents) {
       if (e.group !== currentGroup) {
         currentGroup = e.group;
-        currentSub = null;
         groupEl = document.createElement("div");
         groupEl.className = "group";
         const header = document.createElement("div");
@@ -563,26 +587,13 @@ def _(mo):
         groupEl.appendChild(header);
         listInner.appendChild(groupEl);
       }
-      if (e.subgroup && e.subgroup !== currentSub) {
-        currentSub = e.subgroup;
-        subEl = document.createElement("div");
-        subEl.className = "subgroup";
-        const subHeader = document.createElement("div");
-        subHeader.className = "subgroup-header";
-        subHeader.textContent = e.subgroup;
-        subEl.appendChild(subHeader);
-        groupEl.appendChild(subEl);
-      } else if (!e.subgroup) {
-        subEl = null;
-        currentSub = null;
-      }
       const row = document.createElement("div");
       row.className = "row m-" + e.membership;
       row.dataset.table = t;
       row.dataset.id = e.id;
       row.textContent = e.label || e.id;
       row.title = (e.label ? e.label + " \u2014 " : "") + e.id + " (" + e.membership + ")";
-      (subEl || groupEl).appendChild(row);
+      groupEl.appendChild(row);
       rowElements.set(keyOf(t, e.id), row);
     }
     list.appendChild(listInner);
@@ -590,6 +601,8 @@ def _(mo):
 
 
   const adjacency = new Map();
+  const planPlaces = new Map();  // planKey -> Set of placeKeys
+  const planPeople = new Map();  // planKey -> Set of personKeys
   const edgeLines = [];
   const edges = DATA.edges || [];
   const lineFrag = document.createDocumentFragment();
@@ -601,9 +614,17 @@ def _(mo):
     if (!adjacency.has(kb)) adjacency.set(kb, new Set());
     adjacency.get(ka).add(kb);
     adjacency.get(kb).add(ka);
+    // Track plan -> places and plan -> people for transitive highlighting
+    if (e.a_table === "plans" && e.b_table === "places") {
+      if (!planPlaces.has(ka)) planPlaces.set(ka, new Set());
+      planPlaces.get(ka).add(kb);
+    } else if (e.a_table === "plans" && e.b_table === "people") {
+      if (!planPeople.has(ka)) planPeople.set(ka, new Set());
+      planPeople.get(ka).add(kb);
+    }
     const line = document.createElementNS(SVG_NS, "line");
     const cls = ["line-" + e.membership];
-    if (e.plan_attributable === false) cls.push("off-plan");
+    if (e.plan_attributable === true) cls.push("on-plan");
     line.setAttribute("class", cls.join(" "));
     if (e.n_trips_both != null || e.n_trips_journ_only != null) {
       const nb = e.n_trips_both || 0;
@@ -689,15 +710,39 @@ def _(mo):
     selectedKey = key;
     container.classList.add("has-selection");
     row.classList.add("selected");
-    const nbrs = adjacency.get(key);
-    if (nbrs) {
-      nbrs.forEach((n) => {
-        const r = elementForKey(n);
-        if (r) r.classList.add("linked");
-      });
-    }
+    const nbrs = adjacency.get(key) || new Set();
+    nbrs.forEach((n) => {
+      const r = elementForKey(n);
+      if (r) r.classList.add("linked");
+    });
     for (const item of edgeLines) {
       if (item.a === key || item.b === key) item.line.classList.add("active");
+    }
+    // Transitive: when a person is selected, also highlight plans' places
+    if (row.dataset.table === "people") {
+      const bridgedPlaceKeys = new Set();
+      for (const planKey of nbrs) {
+        if (!planKey.startsWith("plans\x00")) continue;
+        const places = planPlaces.get(planKey);
+        if (!places) continue;
+        for (const placeKey of places) {
+          if (placeKey === key) continue;
+          if (!nbrs.has(placeKey)) {
+            const pr = elementForKey(placeKey);
+            if (pr) pr.classList.add("linked");
+          }
+          bridgedPlaceKeys.add(placeKey); // always track for plan<->place edge activation
+        }
+      }
+      // Activate plan<->place edges that bridge to those newly linked places
+      for (const item of edgeLines) {
+        if (item.aTable === "plans" && item.bTable === "places") {
+          const planKey = item.a;
+          if (nbrs.has(planKey) && bridgedPlaceKeys.has(item.b)) {
+            item.line.classList.add("active");
+          }
+        }
+      }
     }
   }
 
