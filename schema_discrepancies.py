@@ -15,58 +15,6 @@ def _():
 
 @app.cell
 def _(mo):
-    from textwrap import dedent
-
-    mo.md(
-        dedent(
-            r"""
-            # Table schema with dataset discrepancies
-
-            Compare **board** data (`data/Collected_by_the_Government/`) with **journalist** data (`data/Collected_by_the_Journalist/`).
-
-            The interactive widget below spans the full browser width with three narrow lists — **plans** (left, showing each plan's long title), **people** (middle), and **places** (right) — separated by wide line bands. Each list is subdivided by section headers:
-
-            - **people** grouped by `role`
-            - **plans** grouped by `topic` (from `plan_topics.csv` joined with `topics.csv`); each plan row is prefixed with an emoji indicating its `plan_type` (🗣️ Discussion, 💬 Feedback, 📄 Report, ✊ Take Action, 🚗 Travel, 📊 Presentation, 📝 Proposal)
-            - **places** grouped by `zone`
-
-            All plans and places are rendered in full inside the widget — the widget does not scroll internally, so an edge's endpoint always lands exactly on its row. Scroll the notebook page to traverse the widget vertically. Click any row to isolate its links (clicking a person also highlights the places reachable via that person's plans); click again or any blank area to clear.
-
-            Use the **toolbar** at the top of the chart to switch between three views: **All data** (default, every row and link), **Common data only** (rows and links present in both datasets — the board's acknowledged record), or **Journalist data only** (rows and links present only in the journalist's dataset, including fully-recorded people whose individual trips or participations the board left out).
-
-            **Row fill** (one per entity) encodes where that entity is recorded:
-
-            | Fill | Meaning |
-            |------|---------|
-            | Light | Present in **both** datasets |
-            | Red   | Only in the **journalist** export (omitted by the board) |
-
-            (The board dataset is a strict subset of the journalist's, so no row is ever board-only.)
-
-            **Line color** encodes the dataset status of the relationship itself:
-
-            | Line color | Meaning |
-            |------------|---------|
-            | Gray   | **Both** — every supporting record is shared |
-            | Amber  | **Partial** — *people ↔ places* only: board admits the visit but records fewer trips than the journalist |
-            | Red    | **Journalist only** — no board record at all |
-
-            **Line style** encodes plan attribution:
-
-            | Line style | Meaning |
-            |------------|---------|
-            | Dotted | **Plan-attributable** — for `people ↔ places` edges: some plan lists both the person and the place; for `plans ↔ people` edges: the plan is a Travel plan; all `plans ↔ places` edges are always dotted |
-            | Solid  | **Off-plan** — no plan in either dataset covers this (person, place) pair |
-
-            The `people ↔ places` edges are derived from `trip_people.csv ⋈ trip_places.csv` on `trip_id`.
-            """
-        ).strip()
-    )
-    return
-
-
-@app.cell
-def _(mo):
     from collections import Counter
     from pathlib import Path
     import html as _html
@@ -899,42 +847,6 @@ def _(mo):
 @app.cell
 def _(widget):
     widget
-    return
-
-
-@app.cell
-def _(entities_view, mo):
-    mo.vstack(
-        [
-            mo.md(
-                "## Entity overview — **people**, **plans**, **places** (one row per id; membership vs board/journalist)"
-            ),
-            mo.ui.dataframe(entities_view, page_size=25),
-        ]
-    )
-    return
-
-
-@app.cell
-def _(edge_summary_df, mo):
-    mo.vstack(
-        [
-            mo.md(
-                "## Relationship counts per table pair (3-state dataset membership; **partial** only applies to **people↔places** and means the board records the pair with fewer supporting trips than the journalist)"
-            ),
-            mo.ui.dataframe(edge_summary_df, page_size=20),
-        ]
-    )
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
     return
 
 
