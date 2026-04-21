@@ -492,6 +492,7 @@ def _(mo):
     line-height: 1.5;
   }
   .legend .group-label { display: block; font-weight: 700; margin-top: 2px; color: #0f172a; }
+  .legend .legend-item { display: block; }
   .legend .sw {
     display: inline-block; width: 10px; height: 10px;
     margin-right: 4px; vertical-align: middle; border: 1px solid #94a3b8;
@@ -520,13 +521,13 @@ def _(mo):
         <button type="button" class="mode-btn" data-mode="suppressed">Journalist data only</button>
       </div>
       <div class="legend">
-        <span class="group-label">Rows &amp; line color (dataset)</span>
-        <span><span class="sw both"></span>Both datasets</span>
-        <span style="margin-left:8px"><span class="sw partial"></span>Partial (board undercounts trips)</span>
-        <span style="margin-left:8px"><span class="sw journal"></span>Journalist only</span>
-        <span class="group-label">Line style (plan attribution)</span>
-        <span><span class="line-sw dotted"></span>Planned trips</span>
-        <span style="margin-left:8px"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
+        <span class="group-label">Dataset type</span>
+        <span class="legend-item"><span class="sw both"></span>Common data</span>
+        <span class="legend-item"><span class="sw journal"></span>Journalist data only</span>
+        <span class="legend-item"><span class="sw partial"></span>Trips undercounted by board</span>
+        <span class="group-label">Link type</span>
+        <span class="legend-item"><span class="line-sw dotted"></span>Planned trips</span>
+        <span class="legend-item"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
         <div class="hint">Click any row to isolate its links; click a blank area to clear.<br>Clicking a person also highlights the plan↔place links for their planned trips.</div>
       </div>
     </div>
