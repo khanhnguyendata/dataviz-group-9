@@ -423,12 +423,17 @@ def _(mo):
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; }
-  html { margin: 0; height: 100%; }
-  body { margin: 0; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
-  .toolbar {
-    display: flex; justify-content: center; gap: 6px;
-    padding: 10px 12px 0; flex-shrink: 0;
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+  .middle-stack {
+    grid-area: people;
+    display: flex; flex-direction: column; align-items: stretch;
+    min-height: 0;
   }
+  .info-area {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding-bottom: 10px;
+  }
+  .toolbar { display: flex; justify-content: center; gap: 6px; }
   .mode-btn {
     font-size: 11px; padding: 4px 10px; border-radius: 4px;
     border: 1px solid #cbd5e1; background: #fff; color: #334155;
@@ -439,7 +444,7 @@ def _(mo):
   .container {
     position: relative;
     padding: 12px;
-    flex: 1;
+    height: 100%;
     display: grid;
     grid-template-columns: 360px 1fr 140px 1fr 180px;
     grid-template-areas: "plans . people . places";
@@ -523,10 +528,9 @@ def _(mo):
   .container.has-selection .overlay line.active  { stroke-opacity: 1.0; stroke-width: 2.5; }
   .overlay line.active { stroke-opacity: 0.95; stroke-width: 2; }
   .legend {
-    position: absolute; left: 50%; transform: translateX(-50%); top: 14px;
     font-size: 11px; color: #334155;
     background: rgba(255,255,255,0.94); padding: 8px 10px; border-radius: 6px;
-    border: 1px solid #cbd5e1; pointer-events: none; max-width: 540px;
+    border: 1px solid #cbd5e1; max-width: 540px;
     line-height: 1.5;
   }
   .legend .group-label { display: block; font-weight: 700; margin-top: 2px; color: #0f172a; }
@@ -549,15 +553,29 @@ def _(mo):
 </style>
 </head>
 <body>
-<div class="toolbar" role="radiogroup" aria-label="Dataset view">
-  <button type="button" class="mode-btn active" data-mode="all">All data</button>
-  <button type="button" class="mode-btn" data-mode="common">Common only</button>
-  <button type="button" class="mode-btn" data-mode="suppressed">Suppressed by board</button>
-</div>
 <div class="container" id="container">
-  <div class="column" data-table="people">
-    <h3 id="h-people"></h3>
-    <div class="list" id="list-people"></div>
+  <div class="middle-stack">
+    <div class="info-area">
+      <div class="toolbar" role="radiogroup" aria-label="Dataset view">
+        <button type="button" class="mode-btn active" data-mode="all">All data</button>
+        <button type="button" class="mode-btn" data-mode="common">Common only</button>
+        <button type="button" class="mode-btn" data-mode="suppressed">Suppressed by board</button>
+      </div>
+      <div class="legend">
+        <span class="group-label">Rows &amp; line color (dataset)</span>
+        <span><span class="sw both"></span>Both datasets</span>
+        <span style="margin-left:8px"><span class="sw partial"></span>Partial (board undercounts trips)</span>
+        <span style="margin-left:8px"><span class="sw journal"></span>Journalist only</span>
+        <span class="group-label">Line style (plan attribution)</span>
+        <span><span class="line-sw dotted"></span>Planned trips</span>
+        <span style="margin-left:8px"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
+        <div class="hint">Click any row to isolate its links; click a blank area to clear. Clicking a person also highlights the plan↔place links for their planned trips.</div>
+      </div>
+    </div>
+    <div class="column" data-table="people">
+      <h3 id="h-people"></h3>
+      <div class="list" id="list-people"></div>
+    </div>
   </div>
   <div class="column" data-table="plans">
     <h3 id="h-plans"></h3>
@@ -568,16 +586,6 @@ def _(mo):
     <div class="list" id="list-places"></div>
   </div>
   <svg class="overlay" id="overlay"></svg>
-  <div class="legend">
-    <span class="group-label">Rows &amp; line color (dataset)</span>
-    <span><span class="sw both"></span>Both datasets</span>
-    <span style="margin-left:8px"><span class="sw partial"></span>Partial (board undercounts trips)</span>
-    <span style="margin-left:8px"><span class="sw journal"></span>Journalist only</span>
-    <span class="group-label">Line style (plan attribution)</span>
-    <span><span class="line-sw dotted"></span>Planned trips</span>
-    <span style="margin-left:8px"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
-    <div class="hint">Click any row to isolate its links; click a blank area to clear. Clicking a person also highlights the plan↔place links for their planned trips.</div>
-  </div>
 </div>
 <script>
 (() => {
