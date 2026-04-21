@@ -378,11 +378,12 @@ def _(mo):
     min-height: 0;
   }
   .info-area {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
     padding-bottom: 10px;
   }
-  .toolbar { display: flex; justify-content: center; gap: 6px; }
+  .toolbar { display: flex; gap: 6px; }
   .mode-btn {
+    flex: 1 1 0;
     font-size: 11px; padding: 4px 10px; border-radius: 4px;
     border: 1px solid #cbd5e1; background: #fff; color: #334155;
     cursor: pointer; user-select: none;
@@ -394,7 +395,7 @@ def _(mo):
     padding: 12px;
     height: 100%;
     display: grid;
-    grid-template-columns: 360px 1fr 140px 1fr 180px;
+    grid-template-columns: 360px 1fr 230px 1fr 180px;
     grid-template-areas: "plans . people . places";
     column-gap: 0;
     align-items: center;
@@ -491,7 +492,7 @@ def _(mo):
   .legend {
     font-size: 11px; color: #334155;
     background: rgba(255,255,255,0.94); padding: 8px 10px; border-radius: 6px;
-    border: 1px solid #cbd5e1; max-width: 540px;
+    border: 1px solid #cbd5e1;
     line-height: 1.5;
   }
   .legend .group-label { display: block; font-weight: 700; margin-top: 2px; color: #0f172a; }
@@ -520,12 +521,12 @@ def _(mo):
     <div class="info-area">
       <div class="toolbar" role="radiogroup" aria-label="Dataset view">
         <button type="button" class="mode-btn active" data-mode="all">All data</button>
-        <button type="button" class="mode-btn" data-mode="common">Common data only</button>
+        <button type="button" class="mode-btn" data-mode="common">Common data</button>
         <button type="button" class="mode-btn" data-mode="suppressed">Journalist data only</button>
       </div>
       <div class="legend">
         <span class="group-label">Dataset type</span>
-        <span class="legend-item"><span class="sw both"></span>Common data</span>
+        <span class="legend-item"><span class="sw both"></span>Common data (board &amp; journalist)</span>
         <span class="legend-item"><span class="sw journal"></span>Journalist data only</span>
         <span class="legend-item"><span class="sw partial"></span>Trips undercounted by board</span>
         <span class="group-label">Link type</span>
