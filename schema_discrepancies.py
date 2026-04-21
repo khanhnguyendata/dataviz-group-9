@@ -45,8 +45,8 @@ def _(mo):
         read_csv(JOURNAL / "topics.csv"), on="topic_id", how="left"
     )
     PLAN_TOPIC = {
-        str(pid).strip(): str(st).strip()
-        for pid, st in zip(_plan_topic_df["plan_id"], _plan_topic_df["short_topic"])
+        str(pid).strip(): str(lt).strip()
+        for pid, lt in zip(_plan_topic_df["plan_id"], _plan_topic_df["long_topic"])
     }
 
     # Build plan_id -> earliest meeting number so plans sort by when they appeared
@@ -427,14 +427,14 @@ def _(mo):
   .group { display: flex; flex-direction: column; }
   .group + .group { margin-top: 20px; }
   .group-header {
-    background: #f1f5f9;
-    color: #334155;
+    background: #64748b;
+    color: #ffffff;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     padding: 2px 4px;
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #475569;
   }
   .row {
     display: block; font-size: 11px; line-height: 13px;
