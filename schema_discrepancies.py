@@ -441,6 +441,9 @@ def _(mo):
   }
   .group-header:hover { background: #475569; }
   .container.has-selection .group-header { opacity: 0.45; }
+  .container.has-selection .group-header.related {
+    opacity: 1.0;
+  }
   .container.has-selection .group-header.selected {
     opacity: 1.0;
     background: #1d4ed8;
@@ -691,8 +694,8 @@ def _(mo):
     selectedKey = null;
     selectedGroup = null;
     container.classList.remove("has-selection");
-    container.querySelectorAll(".row.selected, .row.linked, .group-header.selected").forEach((r) => {
-      r.classList.remove("selected", "linked");
+    container.querySelectorAll(".row.selected, .row.linked, .group-header.selected, .group-header.related").forEach((r) => {
+      r.classList.remove("selected", "linked", "related");
     });
     overlay.querySelectorAll("line.active").forEach((l) => l.classList.remove("active"));
   }
@@ -747,6 +750,13 @@ def _(mo):
         }
       }
     }
+    // Mark group headers that contain any linked row as "related"
+    container.querySelectorAll(".row.linked").forEach((r) => {
+      const g = r.closest(".group");
+      if (!g) return;
+      const h = g.querySelector(".group-header");
+      if (h && !h.classList.contains("selected")) h.classList.add("related");
+    });
   }
   function selectRow(key) {
     clearSelection();
