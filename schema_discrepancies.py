@@ -32,6 +32,8 @@ def _(mo):
 
             All plans and places are rendered in full inside the widget — the widget does not scroll internally, so an edge's endpoint always lands exactly on its row. Scroll the notebook page to traverse the widget vertically. Click any row to isolate its links (clicking a person also highlights the places reachable via that person's plans); click again or any blank area to clear.
 
+            Use the **toolbar** at the top of the chart to switch between three views: **All data** (default, every row and link), **Common only** (rows and links present in both datasets — the board's acknowledged record), or **Suppressed by board** (rows and links the board omitted or undercounted, including fully-recorded people whose individual trips or participations the board left out).
+
             **Row fill** (one per entity) encodes where that entity is recorded:
 
             | Fill | Meaning |
@@ -421,11 +423,23 @@ def _(mo):
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+  html { margin: 0; height: 100%; }
+  body { margin: 0; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+  .toolbar {
+    display: flex; justify-content: center; gap: 6px;
+    padding: 10px 12px 0; flex-shrink: 0;
+  }
+  .mode-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 4px;
+    border: 1px solid #cbd5e1; background: #fff; color: #334155;
+    cursor: pointer; user-select: none;
+  }
+  .mode-btn:hover { background: #f1f5f9; }
+  .mode-btn.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
   .container {
     position: relative;
     padding: 12px;
-    height: 100%;
+    flex: 1;
     display: grid;
     grid-template-columns: 360px 1fr 140px 1fr 180px;
     grid-template-areas: "plans . people . places";
@@ -529,9 +543,17 @@ def _(mo):
   }
   .legend .line-sw.dotted { border-top-style: dotted; }
   .hint { margin-top: 6px; opacity: 0.8; }
+  .row.mode-hidden { display: none; }
+  .overlay line.mode-hidden { display: none; }
+  .group.mode-empty { display: none; }
 </style>
 </head>
 <body>
+<div class="toolbar" role="radiogroup" aria-label="Dataset view">
+  <button type="button" class="mode-btn active" data-mode="all">All data</button>
+  <button type="button" class="mode-btn" data-mode="common">Common only</button>
+  <button type="button" class="mode-btn" data-mode="suppressed">Suppressed by board</button>
+</div>
 <div class="container" id="container">
   <div class="column" data-table="people">
     <h3 id="h-people"></h3>
@@ -636,6 +658,7 @@ def _(mo):
     edgeLines.push({
       line, a: ka, b: kb,
       aTable: e.a_table, bTable: e.b_table,
+      membership: e.membership,
     });
   }
   overlay.appendChild(lineFrag);
@@ -667,6 +690,7 @@ def _(mo):
     }
 
     for (const item of edgeLines) {
+      if (item.line.classList.contains("mode-hidden")) { item.line.style.display = "none"; continue; }
       const ea = elementForKey(item.a);
       const eb = elementForKey(item.b);
       if (!ea || !eb) { item.line.style.display = "none"; continue; }
@@ -745,6 +769,58 @@ def _(mo):
       }
     }
   }
+
+  function applyMode() {
+    const mode = container.dataset.mode || "all";
+    // Step 1: mark lines visible/hidden by membership
+    const visibleLineSet = new Set();
+    for (const item of edgeLines) {
+      let visible;
+      if (mode === "all")         visible = true;
+      else if (mode === "common") visible = item.membership === "both";
+      else                        visible = item.membership !== "both";
+      item.line.classList.toggle("mode-hidden", !visible);
+      if (visible) visibleLineSet.add(item);
+    }
+    // Step 2: collect endpoint keys of visible lines
+    const endpointKeys = new Set();
+    for (const item of visibleLineSet) {
+      endpointKeys.add(item.a);
+      endpointKeys.add(item.b);
+    }
+    // Step 3: mark rows visible/hidden
+    const visibleKeys = new Set();
+    rowElements.forEach((el, key) => {
+      const isBoth = el.classList.contains("m-both");
+      let visible;
+      if (mode === "all")         visible = true;
+      else if (mode === "common") visible = isBoth;
+      else                        visible = !isBoth || endpointKeys.has(key);
+      el.classList.toggle("mode-hidden", !visible);
+      if (visible) visibleKeys.add(key);
+    });
+    // Step 4: hide lines whose endpoint was hidden by row filter
+    for (const item of visibleLineSet) {
+      if (!visibleKeys.has(item.a) || !visibleKeys.has(item.b)) {
+        item.line.classList.add("mode-hidden");
+      }
+    }
+    // Step 5: collapse groups that have no visible rows
+    document.querySelectorAll(".group").forEach(g => {
+      g.classList.toggle("mode-empty", !g.querySelector(".row:not(.mode-hidden)"));
+    });
+    clearSelection();
+    scheduleLayout();
+  }
+
+  container.dataset.mode = "all";
+  document.querySelectorAll(".mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b === btn));
+      container.dataset.mode = btn.dataset.mode;
+      applyMode();
+    });
+  });
 
   container.addEventListener("click", (ev) => {
     const row = ev.target.closest(".row");
