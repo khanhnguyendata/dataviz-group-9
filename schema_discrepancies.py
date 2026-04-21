@@ -435,6 +435,16 @@ def _(mo):
     letter-spacing: 0.04em;
     padding: 2px 4px;
     border-bottom: 1px solid #475569;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity .15s, box-shadow .15s, background .15s;
+  }
+  .group-header:hover { background: #475569; }
+  .container.has-selection .group-header { opacity: 0.45; }
+  .container.has-selection .group-header.selected {
+    opacity: 1.0;
+    background: #1d4ed8;
+    box-shadow: 0 0 0 2px #1d4ed8;
   }
   .row {
     display: block; font-size: 11px; line-height: 13px;
@@ -675,31 +685,45 @@ def _(mo):
   }
 
   let selectedKey = null;
+  let selectedGroup = null;
   function clearSelection() {
     selectedKey = null;
+    selectedGroup = null;
     container.classList.remove("has-selection");
-    container.querySelectorAll(".row.selected, .row.linked").forEach((r) => {
+    container.querySelectorAll(".row.selected, .row.linked, .group-header.selected").forEach((r) => {
       r.classList.remove("selected", "linked");
     });
     overlay.querySelectorAll("line.active").forEach((l) => l.classList.remove("active"));
   }
-  function selectRow(key) {
-    clearSelection();
-    const row = elementForKey(key);
-    if (!row) return;
-    selectedKey = key;
+  function applySelection(selectedKeys) {
     container.classList.add("has-selection");
-    row.classList.add("selected");
-    const nbrs = adjacency.get(key) || new Set();
-    nbrs.forEach((n) => {
-      const r = elementForKey(n);
-      if (r) r.classList.add("linked");
-    });
-    for (const item of edgeLines) {
-      if (item.a === key || item.b === key) item.line.classList.add("active");
+    for (const key of selectedKeys) {
+      const r = elementForKey(key);
+      if (r) r.classList.add("selected");
     }
-    // Transitive: when a person is selected, also highlight plans' places
-    if (row.dataset.table === "people") {
+    // Linked neighbors (outside the selected set)
+    const linkedKeys = new Set();
+    for (const key of selectedKeys) {
+      const nbrs = adjacency.get(key) || new Set();
+      nbrs.forEach((n) => {
+        if (!selectedKeys.has(n)) linkedKeys.add(n);
+      });
+    }
+    for (const key of linkedKeys) {
+      const r = elementForKey(key);
+      if (r) r.classList.add("linked");
+    }
+    // Active edges: any edge touching a selected key
+    for (const item of edgeLines) {
+      if (selectedKeys.has(item.a) || selectedKeys.has(item.b)) {
+        item.line.classList.add("active");
+      }
+    }
+    // Transitive: for each selected person, highlight places reachable via plans
+    for (const key of selectedKeys) {
+      const r = elementForKey(key);
+      if (!r || r.dataset.table !== "people") continue;
+      const nbrs = adjacency.get(key) || new Set();
       const bridgedPlaceKeys = new Set();
       for (const planKey of nbrs) {
         if (!planKey.startsWith("plans\x00")) continue;
@@ -707,23 +731,40 @@ def _(mo):
         if (!places) continue;
         for (const placeKey of places) {
           if (placeKey === key) continue;
-          if (!nbrs.has(placeKey)) {
+          if (!selectedKeys.has(placeKey) && !nbrs.has(placeKey)) {
             const pr = elementForKey(placeKey);
             if (pr) pr.classList.add("linked");
           }
-          bridgedPlaceKeys.add(placeKey); // always track for plan<->place edge activation
+          bridgedPlaceKeys.add(placeKey);
         }
       }
-      // Activate plan<->place edges that bridge to those newly linked places
       for (const item of edgeLines) {
         if (item.aTable === "plans" && item.bTable === "places") {
-          const planKey = item.a;
-          if (nbrs.has(planKey) && bridgedPlaceKeys.has(item.b)) {
+          if (nbrs.has(item.a) && bridgedPlaceKeys.has(item.b)) {
             item.line.classList.add("active");
           }
         }
       }
     }
+  }
+  function selectRow(key) {
+    clearSelection();
+    const row = elementForKey(key);
+    if (!row) return;
+    selectedKey = key;
+    applySelection(new Set([key]));
+  }
+  function selectGroup(groupEl) {
+    clearSelection();
+    const keys = new Set();
+    groupEl.querySelectorAll(".row:not(.mode-hidden)").forEach((r) => {
+      keys.add(keyOf(r.dataset.table, r.dataset.id));
+    });
+    if (keys.size === 0) return;
+    selectedGroup = groupEl;
+    const header = groupEl.querySelector(".group-header");
+    if (header) header.classList.add("selected");
+    applySelection(keys);
   }
 
   function applyMode() {
@@ -773,6 +814,12 @@ def _(mo):
       } else {
         clearSelection();
       }
+    } else if (selectedGroup) {
+      if (selectedGroup.querySelector(".row:not(.mode-hidden)")) {
+        selectGroup(selectedGroup);
+      } else {
+        clearSelection();
+      }
     }
     scheduleLayout();
   }
@@ -788,6 +835,13 @@ def _(mo):
   });
 
   container.addEventListener("click", (ev) => {
+    const header = ev.target.closest(".group-header");
+    if (header) {
+      const groupEl = header.parentElement;
+      if (selectedGroup === groupEl) clearSelection();
+      else selectGroup(groupEl);
+      return;
+    }
     const row = ev.target.closest(".row");
     if (!row) { clearSelection(); return; }
     const key = keyOf(row.dataset.table, row.dataset.id);
