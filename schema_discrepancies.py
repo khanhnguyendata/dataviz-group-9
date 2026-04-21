@@ -32,7 +32,7 @@ def _(mo):
 
             All plans and places are rendered in full inside the widget — the widget does not scroll internally, so an edge's endpoint always lands exactly on its row. Scroll the notebook page to traverse the widget vertically. Click any row to isolate its links (clicking a person also highlights the places reachable via that person's plans); click again or any blank area to clear.
 
-            Use the **toolbar** at the top of the chart to switch between three views: **All data** (default, every row and link), **Common only** (rows and links present in both datasets — the board's acknowledged record), or **Suppressed by board** (rows and links the board omitted or undercounted, including fully-recorded people whose individual trips or participations the board left out).
+            Use the **toolbar** at the top of the chart to switch between three views: **All data** (default, every row and link), **Common data only** (rows and links present in both datasets — the board's acknowledged record), or **Journalist data only** (rows and links present only in the journalist's dataset, including fully-recorded people whose individual trips or participations the board left out).
 
             **Row fill** (one per entity) encodes where that entity is recorded:
 
@@ -525,8 +525,8 @@ def _(mo):
   .overlay line.off-plan          { stroke-dasharray: none; }
   .overlay line.on-plan           { stroke-dasharray: 2 4; }
   .container.has-selection .overlay line         { stroke-opacity: 0.04; }
-  .container.has-selection .overlay line.active  { stroke-opacity: 1.0; stroke-width: 2.5; }
-  .overlay line.active { stroke-opacity: 0.95; stroke-width: 2; }
+  .container.has-selection .overlay line.active  { stroke-opacity: 1.0; }
+  .overlay line.active { stroke-opacity: 0.95; }
   .legend {
     font-size: 11px; color: #334155;
     background: rgba(255,255,255,0.94); padding: 8px 10px; border-radius: 6px;
@@ -558,8 +558,8 @@ def _(mo):
     <div class="info-area">
       <div class="toolbar" role="radiogroup" aria-label="Dataset view">
         <button type="button" class="mode-btn active" data-mode="all">All data</button>
-        <button type="button" class="mode-btn" data-mode="common">Common only</button>
-        <button type="button" class="mode-btn" data-mode="suppressed">Suppressed by board</button>
+        <button type="button" class="mode-btn" data-mode="common">Common data only</button>
+        <button type="button" class="mode-btn" data-mode="suppressed">Journalist data only</button>
       </div>
       <div class="legend">
         <span class="group-label">Rows &amp; line color (dataset)</span>
@@ -569,7 +569,7 @@ def _(mo):
         <span class="group-label">Line style (plan attribution)</span>
         <span><span class="line-sw dotted"></span>Planned trips</span>
         <span style="margin-left:8px"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
-        <div class="hint">Click any row to isolate its links; click a blank area to clear. Clicking a person also highlights the plan↔place links for their planned trips.</div>
+        <div class="hint">Click any row to isolate its links; click a blank area to clear.<br>Clicking a person also highlights the plan↔place links for their planned trips.</div>
       </div>
     </div>
     <div class="column" data-table="people">
@@ -817,13 +817,22 @@ def _(mo):
     document.querySelectorAll(".group").forEach(g => {
       g.classList.toggle("mode-empty", !g.querySelector(".row:not(.mode-hidden)"));
     });
-    clearSelection();
+    // Step 6: preserve current selection if still visible; otherwise clear
+    if (selectedKey) {
+      const el = rowElements.get(selectedKey);
+      if (el && !el.classList.contains("mode-hidden")) {
+        selectRow(selectedKey);
+      } else {
+        clearSelection();
+      }
+    }
     scheduleLayout();
   }
 
   container.dataset.mode = "all";
   document.querySelectorAll(".mode-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b === btn));
       container.dataset.mode = btn.dataset.mode;
       applyMode();
