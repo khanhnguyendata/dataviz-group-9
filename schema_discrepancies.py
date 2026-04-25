@@ -579,6 +579,23 @@ def _(mo):
     border: 1px solid #cbd5e1; line-height: 1.55;
     width: 100%;
   }
+  .instruction-collapsible {
+    overflow: hidden;
+    max-height: 420px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: max-height 420ms ease, opacity 320ms ease, transform 420ms ease, margin-top 420ms ease, padding-top 420ms ease, padding-bottom 420ms ease, border-color 320ms ease;
+  }
+  .instruction-collapsible.is-collapsed {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-color: transparent;
+    pointer-events: none;
+  }
   .how-to-use > strong { display: block; margin: 0 0 6px 0; }
   .how-to-use p { margin: 0; }
   .how-to-use p + p { margin-top: 8px; }
@@ -638,7 +655,7 @@ def _(mo):
           </div>
         </div>
       </div>
-      <div class="how-to-use hidden" id="instruction-3">
+      <div class="how-to-use instruction-collapsible is-collapsed" id="instruction-3">
         <strong>3. Filter by dataset and read colors</strong>
         <p>The color of each plan or place reflects whether they appear in:</p>
         <div class="howto-legend">
@@ -656,7 +673,7 @@ def _(mo):
           </div>
         </div>
       </div>
-      <div class="how-to-use hidden" id="instruction-4">
+      <div class="how-to-use instruction-collapsible is-collapsed" id="instruction-4">
         <strong>4. Explore links to a given plan/person/place</strong>
         <p><strong>Click on a person, plan, or place</strong> to highlight linked entities.</p>
         <p><em>Tip:</em> <strong>Click on a plan topic, person role, or place zone</strong> to see the corresponding links across plans, people, and places under it.</p>
@@ -921,13 +938,33 @@ def _(mo):
   const placesCol = document.querySelector('.column[data-table="places"]');
   const instruction3 = document.getElementById("instruction-3");
   const instruction4 = document.getElementById("instruction-4");
+  let layoutResyncTimer = null;
+
+  function resyncLayoutDuringInstructionAnimation() {
+    if (layoutResyncTimer) {
+      clearInterval(layoutResyncTimer);
+      layoutResyncTimer = null;
+    }
+    // Recompute connector geometry while instructions are animating open/closed.
+    // This keeps line anchors locked to rows during the unfurl transition.
+    let ticks = 0;
+    layoutResyncTimer = setInterval(() => {
+      scheduleLayout();
+      ticks += 1;
+      if (ticks >= 12) {
+        clearInterval(layoutResyncTimer);
+        layoutResyncTimer = null;
+      }
+    }, 50);
+  }
 
   function updateGridLayout() {
     if (plansCol) plansCol.classList.toggle("collapsed", !tableVisible.plans);
     if (placesCol) placesCol.classList.toggle("collapsed", !tableVisible.places);
     const hasRelatedTables = tableVisible.plans || tableVisible.places;
-    if (instruction3) instruction3.classList.toggle("hidden", !hasRelatedTables);
-    if (instruction4) instruction4.classList.toggle("hidden", !hasRelatedTables);
+    if (instruction3) instruction3.classList.toggle("is-collapsed", !hasRelatedTables);
+    if (instruction4) instruction4.classList.toggle("is-collapsed", !hasRelatedTables);
+    resyncLayoutDuringInstructionAnimation();
   }
 
   function applyMode() {
@@ -937,8 +974,8 @@ def _(mo):
     for (const item of edgeLines) {
       let visible;
       if (mode === "all")         visible = true;
-      else if (mode === "common") visible = item.membership === "both";
-      else                        visible = item.membership !== "both";
+      else if (mode === "common") visible = item.membership === "both" || item.membership === "partial";
+      else                        visible = item.membership === "journal_only";
       if (!tableVisible[item.aTable] || !tableVisible[item.bTable]) visible = false;
       item.line.classList.toggle("mode-hidden", !visible);
       if (visible) visibleLineSet.add(item);
