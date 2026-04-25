@@ -145,8 +145,9 @@ def _(
     jnl_discussion_topics,
     jnl_people,
     jnl_topics,
+    pd,
 ):
-    ### THIS MAPPING IS SUBJECT TO CHANGE!!!
+    # define industry category mapping rule
     industry_cate1 = {
         "['large vessel', 'small vessel']":       "fishing",
         "['large vessel']":                       "fishing",
@@ -174,6 +175,7 @@ def _(
     )
     jnl_disc[["source"]] = "journalist"
 
+    # transform government data
     gov_disc = (
         gov_disc_people_part                                        # discussion_id, people_id, sentiment, reason
         .merge(gov_discussion_topics, on="discussion_id", how="left")   # + disc_topic_id, disc_topic_status
@@ -186,24 +188,18 @@ def _(
     )
     gov_disc[["source"]] = "board"
 
-    return gov_disc, jnl_disc
-
-@app.cell
-def _(gov_disc, jnl_disc, pd):
+    # concat data from two sources
     df = pd.concat([jnl_disc, gov_disc], ignore_index=True)[["source", "industry_category", "disc_topic_id", "discussion_id", "disc_person_reason", "person_name", "role", "disc_person_sentiment"]]
-    df.head()
-    return (df,)
+    df["disc_topic_id"] = df["disc_topic_id"].str.replace("_", " ", regex=False).str.capitalize()
 
-
-@app.cell
-def _(df, pd):
+    # create pivotal dataset
     topic_agg = (df
         .groupby(["source", "industry_category", "disc_topic_id"])
         .agg(avg_sentiment=('disc_person_sentiment', 'mean'), disc_cnt=('discussion_id', 'nunique'))
         .reset_index()
                 )
 
-    topic_agg[["type"]] = "Topic"
+    topic_agg[["type"]] = "Discussion topics"
     topic_agg.rename(columns={"disc_topic_id": "label", "disc_person_sentiment": "sentiment"}, inplace=True)
 
     member_agg = (df
@@ -211,12 +207,11 @@ def _(df, pd):
         .agg(avg_sentiment=('disc_person_sentiment', 'mean'), disc_cnt=('discussion_id', 'nunique'))
         .reset_index()
                 )
-    member_agg[["type"]] = "Member"
+    member_agg[["type"]] = "Board members"
     member_agg.rename(columns={"person_name": "label", "disc_person_sentiment": "sentiment"}, inplace=True)
 
     df_agg = pd.concat([topic_agg, member_agg], ignore_index=True)
-    df_agg
-    return (df_agg,)
+    return df, df_agg
 
 
 @app.cell(hide_code=True)
@@ -228,101 +223,98 @@ def _(mo):
 
 
 @app.cell
-def _():
-    return
+def _(alt, df, df_agg, mo):
+    # ── Cell 2: constants ─────────────────────────────────────────────────────────
+    BG_SINGLE      = "#E8EDF7"
+    BG_OVERLAPPING = "#FFF0E0"
+    SOURCE_DOMAIN  = ["board", "journalist"]
+    SOURCE_RANGE   = ["#000080", "#CD5C5C"]
+    CAT_ORDER      = ["fishing", "mixed", "tourism"]
+    CAT_COLORS     = {"fishing": "#1565c0", "mixed": "#6a1b9a", "tourism": "#e65100"}
 
-
-@app.cell
-def _(alt, df_agg, mo):
-
-    BG_SINGLE     = "#E8EDF7"   # cool blue  — only one source
-    BG_OVERLAPPING = "#FFF0E0"  # warm amber — both sources present
-    #  ── 3. Toggle selection ───────────────────────────────────────────────────────
-    toggle = alt.selection_point(
-        name="toggle",
-        fields=["type"],
-        bind=alt.binding_radio(options=["Topic", "Member"], name="View by: "),
-        value="Topic",
-    )
-
+    # ── Cell 3: shared encodings ──────────────────────────────────────────────────
     color = alt.Color(
         "source:N",
-        scale=alt.Scale(domain=["board", "journalist"], range=["#000080", "#CD5C5C"]),
-        legend=alt.Legend(title="Source", clipHeight=30)
+        scale=alt.Scale(domain=SOURCE_DOMAIN, range=SOURCE_RANGE),
+        legend=alt.Legend(title="Data sources", clipHeight=30),
     )
-    # ── Cell 1: chart function per category ──────────────────────────────────────
-    def make_lane3(category, df_filtered):
-        """One swim lane = one chart built from pre-filtered data."""
+    cat_color = alt.Color(
+        "industry_category:N",
+        scale=alt.Scale(
+            domain=list(CAT_COLORS.keys()),
+            range=list(CAT_COLORS.values()),
+        ),
+        legend=alt.Legend(title="Categories", orient="right"),  # ← shown in bg only
+    )
 
-        # ── Pivot wide for horizontal connecting lines ────────────────────────────
+    cat_color_no_legend = alt.Color(
+        "industry_category:N",
+        scale=alt.Scale(
+            domain=list(CAT_COLORS.keys()),
+            range=list(CAT_COLORS.values()),
+        ),
+        legend=None, 
+    )
+
+    source_color = alt.Color(
+        "source:N",
+        scale=alt.Scale(domain=SOURCE_DOMAIN, range=SOURCE_RANGE),
+        legend=alt.Legend(title="Data sources", orient="right"),    # ← shown in dots only
+    )
+
+    source_color_no_legend = alt.Color(
+        "source:N",
+        scale=alt.Scale(domain=SOURCE_DOMAIN, range=SOURCE_RANGE),
+        legend=None,   # ← for v_lines, avg_text, etc.
+    )
+    x_scale = alt.Scale(domain=[-1, 1])
+
+    # ── Cell 4: Marimo toggle ─────────────────────────────────────────────────────
+    view_toggle = mo.ui.radio(
+        options=["Discussion topics", "Board members"],
+        value="Discussion topics",
+        label="View primary visualization by:",
+    )
+
+    # ── Cell 5: make_lane ─────────────────────────────────────────────────────────
+    def make_lane(category, df_filtered):
         df_wide = (
             df_filtered
-            .pivot_table(
-                index=["type", "label"],
-                columns="source",
-                values="avg_sentiment"
-            )
+            .pivot_table(index=["type","label"], columns="source", values="avg_sentiment")
             .reset_index()
         )
         df_wide.columns.name = None
+        for col in ["board", "journalist"]:
+            if col not in df_wide.columns:
+                df_wide[col] = float("nan")
+        df_wide["has_both"] = df_wide[["journalist","board"]].notna().all(axis=1)
 
-        # ── Category avg per source for vertical lines ────────────────────────────
         df_avg = (
             df_filtered
             .groupby("source")["avg_sentiment"]
-            .mean()
-            .reset_index()
+            .mean().reset_index()
             .rename(columns={"avg_sentiment": "cat_avg"})
         )
-      # ── Background strips ─────────────────────────────────────────────────────
+
         bg = (
             alt.Chart(df_wide)
             .mark_rect(opacity=0.4)
             .encode(
-                y=alt.Y("label:N", title=None, axis=alt.Axis(labelFontSize=12)),
+                y=alt.Y("label:N", title=None,
+                        axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
                 color=alt.condition(
                     "datum.has_both",
                     alt.value(BG_OVERLAPPING),
                     alt.value(BG_SINGLE),
                 ),
             )
-            .transform_filter(toggle)
         )
 
-        # ── Dots ──────────────────────────────────────────────────────────────────
-        dots = (
-            alt.Chart(df_filtered)
-            .mark_circle(opacity=0.8, stroke='black', strokeWidth=1,
-                         strokeOpacity=0.4, size=80)
-            .encode(
-                alt.X('avg_sentiment:Q')
-                    .title("Average sentiment" if category == "tourism" else "")
-                    .scale(domain=[-1, 1]),
-                alt.Y('label:N')
-                    .title(None)
-                    .axis(alt.Axis(labelFontSize=12)),
-                alt.Size('disc_cnt:Q')
-                    .title('# Discussions')
-                    .legend(clipHeight=30, format='s'),
-                color,
-                tooltip=[
-                    alt.Tooltip("source:N",        title="Data source:"),
-                    alt.Tooltip("type_label:N",     title="Granularity:"),
-                    alt.Tooltip("avg_sentiment:Q",  title="Avg sentiment:", format=".2f"),
-                    alt.Tooltip("disc_cnt:Q",       title="# discussions:", format='~s'),
-                ],
-            )
-            .transform_calculate(type_label="datum.type + ' ' + datum.label")
-            .transform_filter(toggle)
-            .add_params(toggle)
-        )
-
-        # ── Horizontal lines: connect journalist ↔ board per label ────────────────
         horizontal_lines = (
             alt.Chart(df_wide)
-            .mark_rule(strokeWidth=1.5, opacity=0.5)
+            .mark_rule(strokeWidth=1.5, opacity=0.5, color="gray")
             .encode(
-                x=alt.X("journalist:Q", scale=alt.Scale(domain=[-1, 1])),
+                x=alt.X("journalist:Q", scale=x_scale),
                 x2="board:Q",
                 y=alt.Y("label:N"),
                 tooltip=[
@@ -331,88 +323,273 @@ def _(alt, df_agg, mo):
                     alt.Tooltip("board:Q",      title="Board:",      format=".3f"),
                 ],
             )
-            .transform_filter(toggle)
-            .add_params(toggle)
         )
 
-        # ── Vertical lines: avg sentiment per source for this category ────────────
+        dots = (
+            alt.Chart(df_filtered)
+            .mark_circle(stroke="black", strokeWidth=1, strokeOpacity=0.4, size=80)
+            .encode(
+                alt.X("avg_sentiment:Q")
+                    .title("Average sentiment" if category == "tourism" else "")
+                    .scale(x_scale),
+                alt.Y("label:N")
+                    .title(None)
+                    .axis(alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
+                alt.Size("disc_cnt:Q")
+                    .scale(domainMin=1)
+                    .title("# Discussions")
+                    .legend(clipHeight=30, format="d"),
+                color,
+                tooltip=[
+                    alt.Tooltip("source:N",        title="Data source:"),
+                    alt.Tooltip("type_label:N",     title="Granularity:"),
+                    alt.Tooltip("avg_sentiment:Q",  title="Avg sentiment:", format=".1f"),
+                    alt.Tooltip("disc_cnt:Q",       title="# discussions:", format="~s"),
+                ],
+            )
+            .transform_calculate(type_label="datum.type + ': ' + datum.label")
+        )
+
         vertical_lines = (
             alt.Chart(df_avg)
-            .mark_rule(strokeWidth=3, opacity=0.9, strokeDash=[4, 2])
+            .mark_rule(strokeWidth=2, opacity=0.9, strokeDash=[4, 2])
             .encode(
-                x=alt.X("cat_avg:Q", scale=alt.Scale(domain=[-1, 1])),
-                color=color, 
-                # color=alt.Color(
-                #     "source:N",
-                #     scale=alt.Scale(
-                #         domain=["journalist", "board"],
-                #         range=["#000080", "#CD5C5C"]
-                #     ),
-                # ),
+                x=alt.X("cat_avg:Q", scale=x_scale),
+                color=color,
                 tooltip=[
-                    alt.Tooltip("cat_avg:Q", title="Category avg:", format=".2f"),
+                    alt.Tooltip("cat_avg:Q", title="Category avg:", format=".1f"),
                     "source:N",
                 ],
             )
-            # .transform_filter(toggle)
-            # .add_params(toggle)
         )
 
-        # ── Avg value text labels above vertical lines ────────────────────────────
         avg_text = (
             alt.Chart(df_avg)
-            .mark_text(dy=-8, fontSize=11, fontWeight="bold")
-            .mark_text(
-                dy=-8,       # vertical offset (up)
-                dx=12,       # ← horizontal offset (right)
-                fontSize=11,
-                fontWeight="bold",
-        )
+            .mark_text(dy=-8, dx=12, fontSize=11, fontWeight="bold")
             .encode(
-                x=alt.X("cat_avg:Q", scale=alt.Scale(domain=[-1, 1])),
-                text=alt.Text("cat_avg:Q", format=".2f"),
+                x=alt.X("cat_avg:Q", scale=x_scale),
+                text=alt.Text("cat_avg:Q", format=".1f"),
                 color=color,
             )
-            # .transform_filter(toggle)
-            # .add_params(toggle)
         )
 
         return (
-            alt.layer(horizontal_lines, dots, vertical_lines, avg_text)
+            alt.layer(bg, horizontal_lines, dots, vertical_lines, avg_text)
             .properties(
                 width=520,
                 height=alt.Step(32),
                 title=alt.Title(
-                    text=category.upper(),
+                    text=(
+                    [f"Average sentiment by Discussion category and {view_toggle.value}", category.upper()]
+                    if category == "fishing"
+                    else [category.upper()]
+        ),
                     anchor="start",
-                    fontSize=14,
+                    fontSize=13,
                     fontWeight="bold",
+                    lineHeight=20,
                 )
             )
         )
 
-
-    # ── Cell 2: reactive on toggle ────────────────────────────────────────────────
-    def make_chart3(view_type):
+    # ── Cell 6: make_chart ────────────────────────────────────────────────────────
+    def make_chart(view_type):
         df_filtered = df_agg[df_agg["type"] == view_type].copy()
-
         lanes = [
-            make_lane3(cat, df_filtered[df_filtered["industry_category"] == cat])
-            for cat in ["fishing", "mixed", "tourism"]
+            make_lane(cat, df_filtered[df_filtered["industry_category"] == cat])
+            for cat in CAT_ORDER
             if cat in df_filtered["industry_category"].values
         ]
-
         return (
             alt.vconcat(*lanes)
             .resolve_scale(color="shared", size="shared")
-            .configure_view(stroke="lightgray")
-            .configure_axisY(domain=False, ticks=False, offset=10)
-            .configure_axis(labelFontSize=11, titleFontSize=12)
         )
 
 
-    # ── Cell 3: display ───────────────────────────────────────────────────────────
-    mo.ui.altair_chart(make_chart3(toggle.value))
+    # ── Cell 7: make_drill — Option B (all categories, colored by category) ───────
+    def make_drill(selected_label, current_type):
+        drill_type = "Board members" if current_type == "Discussion topics" else "Discussion topics"
+
+        if current_type == "Discussion topics":
+            # Selected a topic → show all members who discussed it, across all categories
+            df_drill = (
+                df[df["disc_topic_id"] == selected_label]
+                .groupby(["source", "industry_category", "person_name"])
+                .agg(avg_sentiment=("disc_person_sentiment", "mean"),
+                     disc_cnt=("discussion_id", "nunique"))
+                .reset_index()
+                .rename(columns={"person_name": "label"})
+            )
+        else:
+            # Selected a member → show all topics they discussed, across all categories
+            df_drill = (
+                df[df["person_name"] == selected_label]
+                .groupby(["source", "industry_category", "disc_topic_id"])
+                .agg(avg_sentiment=("disc_person_sentiment", "mean"),
+                     disc_cnt=("discussion_id", "nunique"))
+                .reset_index()
+                .rename(columns={"disc_topic_id": "label"})
+            )
+
+        if len(df_drill) == 0:
+            return None
+
+        # Sort y-axis: group by industry_category so fishing/mixed/tourism cluster together
+        label_order = (
+            df_drill
+            .drop_duplicates("label")
+            .sort_values(["industry_category", "label"])["label"]
+            .tolist()
+        )
+
+        # Pivot wide for connecting lines
+        df_drill_wide = (
+            df_drill
+            .pivot_table(index=["industry_category","label"], columns="source", values="avg_sentiment")
+            .reset_index()
+        )
+        df_drill_wide.columns.name = None
+        for col in ["board","journalist"]:
+            if col not in df_drill_wide.columns:
+                df_drill_wide[col] = float("nan")
+
+        # Category avg lines
+        df_drill_avg = (
+            df_drill
+            .groupby(["source","industry_category"])["avg_sentiment"]
+            .mean().reset_index()
+            .rename(columns={"avg_sentiment": "cat_avg"})
+        )
+
+        y_enc = alt.Y("label:N", title=None,
+                      sort=label_order,
+                      axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10))
+
+        # Background color by industry_category
+        bg =(
+        alt.Chart(df_drill_wide)
+        .mark_rect(opacity=0.15)
+        .encode(
+            y=alt.Y("label:N", sort=label_order, title=None,
+                    axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
+            fill=alt.Fill(                         # ← fill, not color
+                "industry_category:N",
+                scale=alt.Scale(
+                    domain=list(CAT_COLORS.keys()),
+                    range=list(CAT_COLORS.values()),
+                ),
+                legend=alt.Legend(title="Categories"),
+            ),
+        )
+    )
+
+        # Connecting lines
+        h_lines = (
+        alt.Chart(df_drill_wide)
+        .mark_rule(strokeWidth=1.5, opacity=0.5, color="gray")
+        .encode(
+            x=alt.X("journalist:Q", scale=x_scale),
+            x2="board:Q",
+            y=alt.Y("label:N", sort=label_order, title=None),
+            tooltip=[
+                "label:N", "industry_category:N",
+                alt.Tooltip("journalist:Q", title="Journalist:", format=".3f"),
+                alt.Tooltip("board:Q",      title="Board:",      format=".3f"),
+            ],
+        )
+    )
+
+        dots = (
+        alt.Chart(df_drill)
+        .mark_circle(stroke="black", strokeWidth=1, strokeOpacity=0.4, size=80)
+        .encode(
+            x=alt.X("avg_sentiment:Q").title("Average sentiment").scale(x_scale),
+            y=alt.Y("label:N", sort=label_order, title=None,
+                    axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
+            color=source_color,                # ← shows source legend
+            size=alt.Size(
+                "disc_cnt:Q",
+                title="# Discussions",
+                scale=alt.Scale(domainMin=1),
+                legend=alt.Legend(clipHeight=30, format="d", values=[1, 2, 4, 6, 8, 10]),
+            ),
+            tooltip=[
+                alt.Tooltip("label:N",             title="Label:"),
+                alt.Tooltip("source:N",            title="Source:"),
+                alt.Tooltip("industry_category:N", title="Category:"),
+                alt.Tooltip("avg_sentiment:Q",     title="Avg sentiment:", format=".1f"),
+                alt.Tooltip("disc_cnt:Q",          title="# discussions:"),
+            ],
+        )
+    )
+
+        # Vertical avg lines per source per category
+        v_lines = (
+        alt.Chart(df_drill_avg)
+        .mark_rule(strokeWidth=2, opacity=0.7, strokeDash=[4, 2])
+        .encode(
+            x=alt.X("cat_avg:Q", scale=x_scale),
+            color=source_color_no_legend,      # ← no legend
+            tooltip=[
+                alt.Tooltip("cat_avg:Q",           title="Category avg:", format=".1f"),
+                "source:N", "industry_category:N",
+            ],
+        )
+    )
+
+        return (
+        alt.layer(bg, h_lines, dots, v_lines)
+        .resolve_legend(color="independent", size="independent")
+        .properties(
+                width=520,
+                height=alt.Step(32),
+                title=alt.Title(
+                    text=f"{selected_label}  —  breakdown by {drill_type} (all categories)",
+                    anchor="start", fontSize=13, fontWeight="bold",
+                )
+            )
+        )
+
+    # ── Cell 8: view toggle + dropdown ───────────────────────────────────────────
+    view_toggle
+    return make_chart, make_drill, view_toggle
+
+
+@app.cell
+def _(make_chart, mo, view_toggle):
+    # display primary chart
+    mo.as_html(
+        make_chart(view_toggle.value)
+        .configure_view(stroke="lightgray")
+        .configure_axisY(domain=False, ticks=False, offset=10)
+        .configure_axis(labelFontSize=11, titleFontSize=12)
+    )
+    return
+
+
+@app.cell
+def _(df_agg, mo, view_toggle):
+    # display drill-down selection
+    all_labels = sorted(df_agg[df_agg["type"] == view_toggle.value]["label"].unique().tolist())
+    label_select = mo.ui.dropdown(
+        options=["— select —"] + all_labels,
+        value="— select —",
+        label=f"Select {view_toggle.value} to drill down:",
+    )
+    label_select
+    return (label_select,)
+
+
+@app.cell
+def _(label_select, make_drill, mo, view_toggle):
+    # display drill-down chart
+    if label_select.value == "— select —" or label_select.value is None:
+        output = mo.md("_👆 Select a topic or member above to see the full cross-category breakdown_")
+    else:
+        chart = make_drill(label_select.value, view_toggle.value)
+        output = mo.as_html(chart) if chart is not None else mo.md("_No data found_")
+
+    output
     return
 
 
