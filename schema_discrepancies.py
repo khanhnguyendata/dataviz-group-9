@@ -363,7 +363,7 @@ def _(mo):
         column_heights.append(
             len(entries) * row_h + n_groups * HDR_H + max(0, n_groups - 1) * GROUP_GAP
         )
-    iframe_height = max(column_heights) + COL_HDR_H + COL_PAD + 40
+    iframe_height = max(column_heights) + COL_HDR_H + COL_PAD + 160
 
     HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
@@ -371,17 +371,21 @@ def _(mo):
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; }
   .middle-stack {
     grid-area: people;
     display: flex; flex-direction: column; align-items: stretch;
     min-height: 0;
+    width: 278px;
+    justify-self: center;
   }
   .info-area {
     display: flex; flex-direction: column; align-items: stretch; gap: 8px;
     padding-bottom: 10px;
+    width: 100%;
   }
-  .toolbar { display: flex; gap: 6px; }
+  .toolbar { display: flex; gap: 6px; width: 100%; }
+  .toolbar.hidden { display: none; }
   .mode-btn {
     flex: 1 1 0;
     font-size: 11px; padding: 4px 10px; border-radius: 4px;
@@ -389,16 +393,38 @@ def _(mo):
     cursor: pointer; user-select: none;
   }
   .mode-btn:hover { background: #f1f5f9; }
-  .mode-btn.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+  .mode-btn.active,
+  .mode-btn.active:hover,
+  .mode-btn:active {
+    color: #fff;
+  }
+  .mode-btn[data-mode="all"].active,
+  .mode-btn[data-mode="all"].active:hover,
+  .mode-btn[data-mode="all"]:active {
+    background: #334155;
+    border-color: #334155;
+  }
+  .mode-btn[data-mode="common"].active,
+  .mode-btn[data-mode="common"].active:hover,
+  .mode-btn[data-mode="common"]:active {
+    background: #64748b;
+    border-color: #64748b;
+  }
+  .mode-btn[data-mode="suppressed"].active,
+  .mode-btn[data-mode="suppressed"].active:hover,
+  .mode-btn[data-mode="suppressed"]:active {
+    background: #7c3aed;
+    border-color: #7c3aed;
+  }
   .container {
     position: relative;
     padding: 12px;
-    height: 100%;
+    height: auto;
     display: grid;
-    grid-template-columns: 360px 1fr 230px 1fr 180px;
+    grid-template-columns: 360px 1fr 278px 1fr 180px;
     grid-template-areas: "plans . people . places";
-    column-gap: 0;
-    align-items: center;
+    column-gap: 0px;
+    align-items: start;
   }
   .column[data-table="plans"]  { grid-area: plans; }
   .column[data-table="people"] { grid-area: people; }
@@ -408,9 +434,14 @@ def _(mo):
     background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px;
     overflow: hidden; min-height: 0;
   }
+  .column.collapsed {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
   .column h3 {
     margin: 0; padding: 6px 10px; font-size: 12px; font-weight: 700;
-    background: #e2e8f0; border-bottom: 1px solid #cbd5e1;
+    background: #334155; color: #ffffff; border-bottom: 1px solid #334155;
   }
   .list {
     padding: 4px 6px;
@@ -467,73 +498,170 @@ def _(mo):
     padding-bottom: 3px;
   }
   .row + .row { margin-top: 0; }
-  .row.m-both         { background: #f1f5f9; color: #0f172a; }
-  .row.m-journal_only { background: #ede9fe; color: #3b0764; }
+  .row.m-both         { background: #f8fafc; color: #334155; }
+  .row.m-journal_only { background: #f3e8ff; color: #5b21b6; }
   .row.m-both + .row.m-both { box-shadow: inset 0 1px 0 #e2e8f0; }
   .row:hover { box-shadow: 0 0 0 2px #3b82f6; }
   .container.has-selection .row { opacity: 0.18; }
   .container.has-selection .row.linked   { opacity: 1.0; }
   .container.has-selection .row.selected { opacity: 1.0; box-shadow: 0 0 0 3px #1d4ed8; filter: none; }
   .overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
-  .overlay line {
+  .overlay path {
+    fill: none;
     stroke-linecap: round;
-    stroke-opacity: 0.16;
-    stroke-width: 1;
+    stroke-opacity: 0.28;
+    stroke-width: 1.5;
     transition: stroke-opacity .15s, stroke-width .15s;
   }
-  .overlay line.line-both         { stroke: #64748b; }
-  .overlay line.line-partial      { stroke: #0891b2; }
-  .overlay line.line-journal_only { stroke: #7c3aed; }
-  .overlay line.off-plan          { stroke-dasharray: none; }
-  .overlay line.on-plan           { stroke-dasharray: 2 4; }
-  .container.has-selection .overlay line         { stroke-opacity: 0.04; }
-  .container.has-selection .overlay line.active  { stroke-opacity: 1.0; }
-  .overlay line.active { stroke-opacity: 0.95; }
+  .overlay path.line-both         { stroke: #64748b; }
+  .overlay path.line-partial      { stroke: #d97706; }
+  .overlay path.line-journal_only { stroke: #7c3aed; }
+  .overlay path.off-plan          { stroke-dasharray: none; }
+  .overlay path.on-plan           { stroke-dasharray: none; }
+  .container.has-selection .overlay path         { stroke-opacity: 0.06; }
+  .container.has-selection .overlay path.active  { stroke-opacity: 1.0; stroke-width: 2; }
+  .overlay path.active { stroke-opacity: 0.95; stroke-width: 2; }
   .legend {
     font-size: 11px; color: #334155;
     background: rgba(255,255,255,0.94); padding: 8px 10px; border-radius: 6px;
     border: 1px solid #cbd5e1;
     line-height: 1.5;
   }
-  .legend .group-label { display: block; font-weight: 700; margin-top: 2px; color: #0f172a; }
+  .legend.hidden { display: none; }
+  .legend .group-label { display: block; font-weight: 700; margin-top: 4px; color: #0f172a; }
+  .legend .group-label:first-child { margin-top: 0; }
   .legend .legend-item { display: block; }
   .legend .sw {
     display: inline-block; width: 10px; height: 10px;
     margin-right: 4px; vertical-align: middle; border: 1px solid #94a3b8;
   }
-  .legend .sw.both        { background: #f8fafc; }
-  .legend .sw.partial     { background: #0891b2; }
-  .legend .sw.journal     { background: #7c3aed; }
-  .legend .line-sw {
-    display: inline-block; width: 22px; height: 0; margin-right: 4px;
-    vertical-align: middle; border-top: 2px solid #334155;
-  }
-  .legend .line-sw.dotted { border-top-style: dotted; }
-  .hint { margin-top: 6px; opacity: 0.8; }
+  .legend .sw.both             { background: #f8fafc; }
+  .legend .sw.journal          { background: #f3e8ff; border-color: #c4b5fd; }
+  .legend .sw.edge-both        { background: #64748b; border-color: #64748b; }
+  .legend .sw.edge-partial     { background: #d97706; border-color: #d97706; }
+  .legend .sw.edge-journal     { background: #7c3aed; border-color: #7c3aed; }
   .row.mode-hidden { display: none; }
-  .overlay line.mode-hidden { display: none; }
+  .overlay path.mode-hidden { display: none; }
   .group.mode-empty { display: none; }
+  .table-toggles {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .toggle-label {
+    font-size: 11px; color: #64748b; font-weight: 600; flex-shrink: 0;
+  }
+  .tbl-btn {
+    font-size: 11px; padding: 3px 10px; border-radius: 4px;
+    border: 1px solid #cbd5e1; background: #fff; color: #334155;
+    cursor: pointer; user-select: none; transition: background .12s, color .12s;
+  }
+  .tbl-btn:not([disabled]):hover { background: #f1f5f9; color: #334155; }
+  .tbl-btn.active,
+  .tbl-btn.active:hover,
+  .tbl-btn:not([disabled]):active {
+    background: #334155; color: #fff; border-color: #334155;
+  }
+  .tbl-btn[disabled] { cursor: default; opacity: 0.7; }
+  .control-card {
+    font-size: 11px; color: #334155;
+    background: transparent; padding: 0; border-radius: 0;
+    border: none;
+    display: flex; flex-direction: column; gap: 6px;
+    width: 100%;
+  }
+  .control-card .control-title {
+    font-size: 10px; letter-spacing: 0.02em; text-transform: uppercase;
+    color: #64748b; font-weight: 700;
+  }
+  .control-card.hidden { display: none; }
+  .how-to-use {
+    font-size: 11px; color: #334155;
+    background: rgba(255,255,255,0.94); padding: 9px 12px; border-radius: 6px;
+    border: 1px solid #cbd5e1; line-height: 1.55;
+    width: 100%;
+  }
+  .how-to-use > strong { display: block; margin: 0 0 6px 0; }
+  .how-to-use p { margin: 0; }
+  .how-to-use p + p { margin-top: 8px; }
+  .how-to-use .control-card { margin-top: 6px; }
+  .how-to-use summary {
+    font-weight: 700; cursor: pointer; color: #0f172a; user-select: none;
+    list-style: none; display: flex; align-items: center; gap: 4px;
+  }
+  .how-to-use summary::-webkit-details-marker { display: none; }
+  .how-to-use summary::before { content: "▸"; font-size: 9px; color: #64748b; }
+  .how-to-use[open] summary::before { content: "▾"; }
+  .how-to-use summary:hover { color: #1d4ed8; }
+  .usage-steps { margin: 6px 0 0 0; padding-left: 16px; }
+  .usage-steps li { margin-bottom: 4px; }
+  .usage-steps .control-card { margin-top: 6px; }
+  .control-row { display: flex; gap: 6px; width: 100%; }
+  .control-row .tbl-btn,
+  .control-row .mode-btn { flex: 1 1 0; }
+  .howto-legend { margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
+  .howto-legend-item { display: flex; align-items: flex-start; gap: 6px; }
+  .howto-legend-item .legend-label-common { color: #64748b; }
+  .howto-legend-item .legend-label-partial { color: #d97706; }
+  .howto-legend-item .legend-label-journal { color: #7c3aed; }
+  .howto-swatch {
+    display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    border: 1px solid #94a3b8; flex: 0 0 10px;
+    margin-top: 3px;
+  }
+  .howto-swatch.common { background: #64748b; border-color: #64748b; }
+  .howto-swatch.partial { background: #d97706; border-color: #d97706; }
+  .howto-swatch.journal { background: #7c3aed; border-color: #7c3aed; }
+  .status-hint {
+    font-size: 10px; color: #64748b; min-height: 14px; padding: 1px 2px;
+    font-style: italic;
+    display: none;
+  }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div class="container" id="container">
   <div class="middle-stack">
     <div class="info-area">
-      <div class="toolbar" role="radiogroup" aria-label="Dataset view">
-        <button type="button" class="mode-btn active" data-mode="all">All data</button>
-        <button type="button" class="mode-btn" data-mode="common">Common data</button>
-        <button type="button" class="mode-btn" data-mode="suppressed">Journalist data only</button>
+      <div class="how-to-use">
+        <strong>1. How to read this chart</strong>
+        <p>The board reports are missing a lot of data compared to yours — especially <strong>plans</strong> that <strong>people</strong> participated in, and <strong>places</strong> that they travelled to.</p>
+        <p>This chart helps you spot missing links between <strong>plans</strong>&nbsp;↔ <strong>people</strong>&nbsp;↔ <strong>places</strong> in board data, highlighting potential biases that the board might try to hide from their reporting.</p>
       </div>
-      <div class="legend">
-        <span class="group-label">Dataset type</span>
-        <span class="legend-item"><span class="sw both"></span>Common data (board &amp; journalist)</span>
-        <span class="legend-item"><span class="sw journal"></span>Journalist data only</span>
-        <span class="legend-item"><span class="sw partial"></span>Trips undercounted by board</span>
-        <span class="group-label">Link type</span>
-        <span class="legend-item"><span class="line-sw dotted"></span>Planned trips</span>
-        <span class="legend-item"><span class="line-sw"></span>Other links (incl. unplanned trips)</span>
-        <div class="hint">Click any row to isolate its links; click a blank area to clear.<br>Clicking a person also highlights the plan↔place links for their planned trips.</div>
+      <div class="how-to-use">
+        <strong>2. Show related tables for each person</strong>
+        <p>Below are the list of people in the board.</p>
+        <p><strong>Click on Plans</strong> to display the plans associated to each person, and <strong>Places</strong> to display the places that they travelled to:</p>
+        <div class="control-card">
+          <div class="control-row" role="group" aria-label="Show columns">
+            <button type="button" class="tbl-btn" data-tbl="plans">Plans</button>
+            <button type="button" class="tbl-btn" data-tbl="places">Places</button>
+          </div>
+        </div>
       </div>
+      <div class="how-to-use hidden" id="instruction-3">
+        <strong>3. Filter by dataset and read colors</strong>
+        <p>The color of each plan or place reflects whether they appear in:</p>
+        <div class="howto-legend">
+          <div class="howto-legend-item"><span class="howto-swatch common"></span><span><strong class="legend-label-common">Common data:</strong> in both board data and your collected data</span></div>
+          <div class="howto-legend-item"><span class="howto-swatch partial"></span><span><strong class="legend-label-partial">Partially missing trips:</strong> board data has fewer trips than your data</span></div>
+          <div class="howto-legend-item"><span class="howto-swatch journal"></span><span><strong class="legend-label-journal">Journalist data only:</strong> only in your collected data</span></div>
+        </div>
+        <p>The same color logic also applies to <strong>links</strong> between <strong>plans</strong>&nbsp;↔ <strong>people</strong>&nbsp;↔ <strong>places</strong>.</p>
+        <p><strong>Click on a dataset</strong> to filter data in that dataset:</p>
+        <div class="control-card">
+          <div class="toolbar" role="radiogroup" aria-label="Dataset view">
+            <button type="button" class="mode-btn active" data-mode="all">All data</button>
+            <button type="button" class="mode-btn" data-mode="common">Common data</button>
+            <button type="button" class="mode-btn" data-mode="suppressed">Journalist data only</button>
+          </div>
+        </div>
+      </div>
+      <div class="how-to-use hidden" id="instruction-4">
+        <strong>4. Explore links to a given plan/person/place</strong>
+        <p><strong>Click on a person, plan, or place</strong> to highlight linked entities.</p>
+        <p><em>Tip:</em> <strong>Click on a plan topic, person role, or place zone</strong> to see the corresponding links across plans, people, and places under it.</p>
+      </div>
+      <div class="status-hint" id="status-hint"></div>
     </div>
     <div class="column" data-table="people">
       <h3 id="h-people"></h3>
@@ -561,9 +689,10 @@ def _(mo):
   const keyOf = (t, i) => t + "\u0000" + i;
 
   const rowElements = new Map();
+  const TABLE_LABELS = { people: "People", plans: "Plans", places: "Places" };
   for (const t of TABLES) {
     const ents = (DATA.tables && DATA.tables[t]) || [];
-    document.getElementById("h-" + t).textContent = t + " (" + ents.length + ")";
+    document.getElementById("h-" + t).textContent = TABLE_LABELS[t] + " (" + ents.length + ")";
     const list = document.getElementById("list-" + t);
     const listInner = document.createElement("div");
     listInner.className = "list-inner";
@@ -615,9 +744,8 @@ def _(mo):
       if (!planPeople.has(ka)) planPeople.set(ka, new Set());
       planPeople.get(ka).add(kb);
     }
-    const line = document.createElementNS(SVG_NS, "line");
+    const line = document.createElementNS(SVG_NS, "path");
     const cls = ["line-" + e.membership];
-    if (e.plan_attributable === true) cls.push("on-plan");
     line.setAttribute("class", cls.join(" "));
     if (e.n_trips_both != null || e.n_trips_journ_only != null) {
       const nb = e.n_trips_both || 0;
@@ -641,7 +769,15 @@ def _(mo):
   let raf = 0;
   function scheduleLayout() {
     if (raf) return;
-    raf = requestAnimationFrame(() => { raf = 0; layoutLines(); });
+    raf = requestAnimationFrame(() => { raf = 0; layoutLines(); syncFrameHeight(); });
+  }
+
+  function syncFrameHeight() {
+    if (!window.frameElement) return;
+    const bodyH = document.body.scrollHeight;
+    const docH = document.documentElement.scrollHeight;
+    const nextH = Math.max(bodyH, docH, 400);
+    window.frameElement.style.height = nextH + "px";
   }
 
   function layoutLines() {
@@ -681,10 +817,9 @@ def _(mo):
       }
       const x1 = colRects[leftT].right - 4;
       const x2 = colRects[rightT].left + 4;
-      item.line.setAttribute("x1", x1);
-      item.line.setAttribute("y1", leftY);
-      item.line.setAttribute("x2", x2);
-      item.line.setAttribute("y2", rightY);
+      const cp = (x2 - x1) * 0.42;
+      const d = `M ${x1},${leftY} C ${x1 + cp},${leftY} ${x2 - cp},${rightY} ${x2},${rightY}`;
+      item.line.setAttribute("d", d);
       item.line.style.display = "";
     }
   }
@@ -698,7 +833,9 @@ def _(mo):
     container.querySelectorAll(".row.selected, .row.linked, .group-header.selected, .group-header.related").forEach((r) => {
       r.classList.remove("selected", "linked", "related");
     });
-    overlay.querySelectorAll("line.active").forEach((l) => l.classList.remove("active"));
+    overlay.querySelectorAll("path.active").forEach((l) => l.classList.remove("active"));
+    const hint = document.getElementById("status-hint");
+    if (hint) hint.textContent = "";
   }
   function applySelection(selectedKeys) {
     container.classList.add("has-selection");
@@ -779,19 +916,34 @@ def _(mo):
     applySelection(keys);
   }
 
+  const tableVisible = { people: true, plans: false, places: false };
+  const plansCol = document.querySelector('.column[data-table="plans"]');
+  const placesCol = document.querySelector('.column[data-table="places"]');
+  const instruction3 = document.getElementById("instruction-3");
+  const instruction4 = document.getElementById("instruction-4");
+
+  function updateGridLayout() {
+    if (plansCol) plansCol.classList.toggle("collapsed", !tableVisible.plans);
+    if (placesCol) placesCol.classList.toggle("collapsed", !tableVisible.places);
+    const hasRelatedTables = tableVisible.plans || tableVisible.places;
+    if (instruction3) instruction3.classList.toggle("hidden", !hasRelatedTables);
+    if (instruction4) instruction4.classList.toggle("hidden", !hasRelatedTables);
+  }
+
   function applyMode() {
     const mode = container.dataset.mode || "all";
-    // Step 1: mark lines visible/hidden by membership
+    // Step 1: mark paths visible/hidden by membership and table visibility
     const visibleLineSet = new Set();
     for (const item of edgeLines) {
       let visible;
       if (mode === "all")         visible = true;
       else if (mode === "common") visible = item.membership === "both";
       else                        visible = item.membership !== "both";
+      if (!tableVisible[item.aTable] || !tableVisible[item.bTable]) visible = false;
       item.line.classList.toggle("mode-hidden", !visible);
       if (visible) visibleLineSet.add(item);
     }
-    // Step 2: collect endpoint keys of visible lines
+    // Step 2: collect endpoint keys of visible paths
     const endpointKeys = new Set();
     for (const item of visibleLineSet) {
       endpointKeys.add(item.a);
@@ -801,14 +953,16 @@ def _(mo):
     const visibleKeys = new Set();
     rowElements.forEach((el, key) => {
       const isBoth = el.classList.contains("m-both");
+      const t = el.dataset.table;
       let visible;
-      if (mode === "all")         visible = true;
+      if (!tableVisible[t])       visible = false;
+      else if (mode === "all")    visible = true;
       else if (mode === "common") visible = isBoth;
       else                        visible = !isBoth || endpointKeys.has(key);
       el.classList.toggle("mode-hidden", !visible);
       if (visible) visibleKeys.add(key);
     });
-    // Step 4: hide lines whose endpoint was hidden by row filter
+    // Step 4: hide paths whose endpoint was hidden by row filter
     for (const item of visibleLineSet) {
       if (!visibleKeys.has(item.a) || !visibleKeys.has(item.b)) {
         item.line.classList.add("mode-hidden");
@@ -846,7 +1000,19 @@ def _(mo):
     });
   });
 
+  document.querySelectorAll(".tbl-btn:not([disabled])").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const t = btn.dataset.tbl;
+      tableVisible[t] = !tableVisible[t];
+      btn.classList.toggle("active", tableVisible[t]);
+      updateGridLayout();
+      applyMode();
+    });
+  });
+
   container.addEventListener("click", (ev) => {
+    if (ev.target.closest(".info-area")) return;
     const header = ev.target.closest(".group-header");
     if (header) {
       const groupEl = header.parentElement;
@@ -865,10 +1031,13 @@ def _(mo):
   if (window.ResizeObserver) {
     new ResizeObserver(scheduleLayout).observe(container);
   }
+  updateGridLayout();
   requestAnimationFrame(() => {
-    layoutLines();
+    applyMode();
     setTimeout(layoutLines, 60);
     setTimeout(layoutLines, 300);
+    setTimeout(syncFrameHeight, 60);
+    setTimeout(syncFrameHeight, 300);
   });
 })();
 </script>
