@@ -295,7 +295,7 @@ def _(alt):
 
     strokeDash = alt.StrokeDash(
         "display_database:N",
-        title="Travel in in trip",
+        title="Travel in trip",
         scale=alt.Scale(domain=["A", "B"], range=[[1, 0], [6, 2]]),
         legend=alt.Legend(
             orient="top",
