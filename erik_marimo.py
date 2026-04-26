@@ -185,7 +185,7 @@ def _(events, mo):
 def _(database_toggle, day_toggle, end_date, events, pd, start_date):
     filtered_events = events
 
-    if database_toggle.value != "Both datasets":
+    if database_toggle.value != "Journalist":
         value_map = {"A": "A", "Journalist": "B"}
         selected = value_map.get(database_toggle.value, "BOTH")
         filtered_events = filtered_events[
