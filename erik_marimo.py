@@ -225,7 +225,7 @@ def _(database_toggle, day_toggle, end_date, events, pd, start_date):
 def _(alt, color_toggle, events, filtered_events):
     UNKNOWN_TRIP = "unknown trip"
     UNKNOWN_PLACE = "unknown place"
-    TIMELINE_HEIGHT = 460
+    TIMELINE_HEIGHT = 270
 
     df = filtered_events.copy()
 
