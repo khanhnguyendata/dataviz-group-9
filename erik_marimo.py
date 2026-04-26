@@ -15,16 +15,13 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     import os
-    import sqlite3
     from pathlib import Path
 
     import altair as alt
     import marimo as mo
     import pandas as pd
 
-    from db_utils import get_trip_export_query, load_config
-
-    return Path, alt, mo, os, pd, sqlite3
+    return Path, alt, mo, os, pd
 
 @app.cell(hide_code=True)
 def _(Path, os, pd):
