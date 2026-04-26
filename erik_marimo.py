@@ -26,42 +26,32 @@ def _():
 
     return Path, alt, mo, os, pd, sqlite3
 
-
 @app.cell(hide_code=True)
-def _(Path, os, pd, sqlite3):
-    DATA_DB_PATH = Path(
-        os.getenv("DVDS_TRIP_DB_PATH", "data/trips_visualization.db")
+def _(Path, os, pd):
+    DATA_DIR = Path(
+        os.getenv("DVDS_TRIP_DATA_DIR", "data/trips")
     )
 
-
-    def load_places(conn: sqlite3.Connection) -> pd.DataFrame:
-        tables = {
-            row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
-        }
-        if "places" in tables:
-            return pd.read_sql("SELECT * FROM places", conn)
+    def load_places() -> pd.DataFrame:
+        path = DATA_DIR / "places.csv"
+        if path.exists():
+            return pd.read_csv(path)
         return pd.DataFrame(columns=["place_id", "zone"])
 
+    def load_events() -> pd.DataFrame:
+        path = DATA_DIR / "trip_entries.csv"
+        if path.exists():
+            return pd.read_csv(path).rename(
+                columns={"person_name": "person"}
+            )
+        return pd.DataFrame()
 
-    def load_events(conn: sqlite3.Connection) -> pd.DataFrame:
-        r = pd.read_sql("SELECT * FROM trip_entries", conn).rename(
-            columns={"person_name": "person"}
-        )
-
-        return r
-
-    return DATA_DB_PATH, load_events, load_places
-
+    return DATA_DIR, load_events, load_places
 
 @app.cell(hide_code=True)
-def _(DATA_DB_PATH, load_events, load_places, pd, sqlite3):
-    if DATA_DB_PATH.exists():
-        with sqlite3.connect(DATA_DB_PATH, uri=True) as conn:
-            events = load_events(conn)
-            places = load_places(conn)
+def _(DATA_DIR, load_events, load_places):
+    events = load_events()
+    places = load_places()
 
     if "entry_id" not in events.columns:
         events.insert(0, "entry_id", range(1, len(events) + 1))
