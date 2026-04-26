@@ -12,29 +12,6 @@ def _(mo):
     return
 
 
-@app.cell
-def _():
-    # if filtered_events.empty:
-    #     md = mo.md("No entries in the current selection_person.")
-    # else:
-    #     total = len(filtered_events)
-    #     count_b = (filtered_events["source_presence"] == "B").sum()
-    #     count_both = (filtered_events["source_presence"] == "BOTH").sum()
-
-    #     md = mo.md(
-    #         f"""
-    # ### Selection_person summary
-
-    # - Total entries: **{total}**
-    # - Journalist dataset: **{count_b}**
-    # - Present in both datasets: **{count_both}**
-    # """
-    #     )
-
-    # md
-    return
-
-
 @app.cell(hide_code=True)
 def _():
     import os
@@ -148,18 +125,17 @@ def _(events):
 @app.cell
 def _(mo):
     mo.md(r"""
-    This tool provides an interactive exploration of relationships between people, places, and trips by combining temporal and spatial visualizations of entries from both datasets. It enables users to analyze movement patterns and interactions through a coordinated timeline and map view.
+ This tool provides an interactive exploration of relationships between people, places, and trips by combining temporal and spatial visualizations of data from both datasets. It enables users to analyze movement patterns and interactions through a coordinated timeline and map view.
 
-    The interface allows users to dynamically adjust the color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, offering flexible temporal exploration.
+The interface allows users to dynamically adjust color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, enabling flexible temporal exploration.
 
-    Interactive selections further enhance analysis: users can highlight subsets directly, specific event on the timeline or within the map, with selections automatically reflected across both views.
-    Double-click to clear the selection_person.
+Interactive selections further enhance analysis: users can highlight subsets, a specific event on the timeline, or items within the map, which are automatically reflected across both views. Double-click to clear the selection.
 
-    In the controle panel it is also possible to only show the entries repported by the board.
+Additionally, counts of entries from the government database and entries shared between both datasets are displayed in the timeline labels.
 
+In the control panel, it is also possible to show only the entries reported by the board.
 
-
-    An live demo is avalible as [molab.marimo.io](https://molab.marimo.io/github/ErikLambrechts/dataviz-group-9/blob/erik/erik_marimo.py/wasm?show-code=false)
+A live demo is available at: [molab.marimo.io](https://molab.marimo.io/github/ErikLambrechts/dataviz-group-9/blob/erik/erik_marimo.py/wasm?show-code=false)
     """)
     return
 
@@ -264,20 +240,6 @@ def _(alt, color_toggle, events, filtered_events):
     color_field = "person" if color_toggle.value == "person" else "zone"
     color_title = "Person" if color_toggle.value == "person" else "Zone"
 
-    # event_pick = alt.param(
-    #     name="event_pick",
-    #     select={"type": "point", "fields": ["event_key"], "on": "click", "clear": "dblclick"}
-    # )
-
-    # timeline_brush = alt.param(
-    #     name="timeline_brush",
-    #     select={"type": "interval", "encodings": ["x"]}
-    # )
-
-    # map_brush = alt.param(
-    #     name="map_brush",
-    #     select={"type": "interval", "encodings": ["x", "y"]}
-    # )
     event_pick = alt.selection_point(
         fields=["event_key"], on="click", clear="dblclick", resolve="global"
     )
