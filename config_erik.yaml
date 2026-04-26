@@ -1,0 +1,12 @@
+# config.yaml
+databases:
+  A: "data/gov.db"
+  B: "data/jour.db"
+
+output_dir: "outputs"
+
+time:
+  date_field_meetings: "date"
+
+plots:
+  save: true

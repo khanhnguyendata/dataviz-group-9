@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import yaml
 
-def load_config(path="config.yaml"):
+def load_config(path="config_erik.yaml"):
     with open(path, "r") as f:
         return yaml.safe_load(f)
 
