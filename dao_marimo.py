@@ -193,25 +193,39 @@ def _(
     df["disc_topic_id"] = df["disc_topic_id"].str.replace("_", " ", regex=False).str.capitalize()
 
     # create pivotal dataset
-    topic_agg = (df
-        .groupby(["source", "industry_category", "disc_topic_id"])
+    topic_member_agg = (df
+        .groupby(["source", "industry_category", "disc_topic_id", "person_name"])
         .agg(avg_sentiment=('disc_person_sentiment', 'mean'), disc_cnt=('discussion_id', 'nunique'))
         .reset_index()
                 )
-
+    def weighted_avg(group):
+        sentiment_x_cnt = (group['avg_sentiment'] * group['disc_cnt']).sum()
+        total_cnt = group['disc_cnt'].sum()
+        return pd.Series({
+            'weighted_avg_sentiment': sentiment_x_cnt / total_cnt,
+            'weighted_sum_sentiment': sentiment_x_cnt,
+            'disc_cnt': total_cnt
+        })
+    
+    topic_agg = (
+        topic_member_agg.groupby(['source', 'industry_category', 'disc_topic_id'])
+        .apply(weighted_avg)
+        .reset_index()
+    )
     topic_agg[["type"]] = "Discussion topics"
     topic_agg.rename(columns={"disc_topic_id": "label", "disc_person_sentiment": "sentiment"}, inplace=True)
 
-    member_agg = (df
-        .groupby(["source", "industry_category", "person_name"])
-        .agg(avg_sentiment=('disc_person_sentiment', 'mean'), disc_cnt=('discussion_id', 'nunique'))
+
+    member_agg = (
+        topic_member_agg.groupby(['source', 'industry_category', 'person_name'])
+        .apply(weighted_avg)
         .reset_index()
-                )
+    )
     member_agg[["type"]] = "Board members"
     member_agg.rename(columns={"person_name": "label", "disc_person_sentiment": "sentiment"}, inplace=True)
 
     df_agg = pd.concat([topic_agg, member_agg], ignore_index=True)
-    return df, df_agg
+    return df_agg, topic_member_agg, weighted_avg
 
 
 @app.cell(hide_code=True)
@@ -223,7 +237,7 @@ def _(mo):
 
 
 @app.cell
-def _(alt, df, df_agg, mo):
+def _(alt, df_agg, mo, topic_member_agg, weighted_avg):
     # ── Cell 2: constants ─────────────────────────────────────────────────────────
     BG_SINGLE      = "#E8EDF7"
     BG_OVERLAPPING = "#FFF0E0"
@@ -231,8 +245,27 @@ def _(alt, df, df_agg, mo):
     SOURCE_RANGE   = ["#000080", "#CD5C5C"]
     CAT_ORDER      = ["fishing", "mixed", "tourism"]
     CAT_COLORS     = {"fishing": "#1565c0", "mixed": "#6a1b9a", "tourism": "#e65100"}
+    # SIZE_DOMAIN = [1, 2, 4, 6, 8, 10]
+    # SIZE_RANGE  = [30, 80, 180, 320, 500, 700] 
 
+    SIZE_DOMAIN = [1, 2, 5, 10, 15, 20, 27]
+    SIZE_RANGE  = [30, 100, 300, 550, 850, 1200, 1600]
     # ── Cell 3: shared encodings ──────────────────────────────────────────────────
+    shared_size = alt.Size(
+        "disc_cnt:Q",
+        title="# Discussions",
+        scale=alt.Scale(
+            domain=[1, 10],             # fixed domain across both charts
+            range=SIZE_RANGE,
+            domainMin=1,
+        ),
+        legend=alt.Legend(
+            clipHeight=30,
+            format="d",
+            values=SIZE_DOMAIN,
+        ),
+    )
+
     color = alt.Color(
         "source:N",
         scale=alt.Scale(domain=SOURCE_DOMAIN, range=SOURCE_RANGE),
@@ -280,7 +313,7 @@ def _(alt, df, df_agg, mo):
     def make_lane(category, df_filtered):
         df_wide = (
             df_filtered
-            .pivot_table(index=["type","label"], columns="source", values="avg_sentiment")
+            .pivot_table(index=["type","label"], columns="source", values="weighted_avg_sentiment")
             .reset_index()
         )
         df_wide.columns.name = None
@@ -289,24 +322,26 @@ def _(alt, df, df_agg, mo):
                 df_wide[col] = float("nan")
         df_wide["has_both"] = df_wide[["journalist","board"]].notna().all(axis=1)
 
+        def weighted_avg_by_cat(group):
+            return (group['weighted_sum_sentiment']).sum() / group['disc_cnt'].sum()
         df_avg = (
-            df_filtered
-            .groupby("source")["avg_sentiment"]
-            .mean().reset_index()
-            .rename(columns={"avg_sentiment": "cat_avg"})
-        )
-
+                df_filtered
+                .groupby("source")
+                .apply(weighted_avg_by_cat, include_groups=False)
+                .reset_index(name="cat_avg")
+            )
         bg = (
             alt.Chart(df_wide)
             .mark_rect(opacity=0.4)
             .encode(
                 y=alt.Y("label:N", title=None,
                         axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
-                color=alt.condition(
-                    "datum.has_both",
-                    alt.value(BG_OVERLAPPING),
-                    alt.value(BG_SINGLE),
-                ),
+                color = alt.value(BG_OVERLAPPING)
+                # color=alt.condition(
+                #     "datum.has_both",
+                #     alt.value(BG_OVERLAPPING),
+                #     alt.value(BG_SINGLE),
+                # ),
             )
         )
 
@@ -326,29 +361,26 @@ def _(alt, df, df_agg, mo):
         )
 
         dots = (
-            alt.Chart(df_filtered)
-            .mark_circle(stroke="black", strokeWidth=1, strokeOpacity=0.4, size=80)
-            .encode(
-                alt.X("avg_sentiment:Q")
-                    .title("Average sentiment" if category == "tourism" else "")
-                    .scale(x_scale),
-                alt.Y("label:N")
-                    .title(None)
-                    .axis(alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
-                alt.Size("disc_cnt:Q")
-                    .scale(domainMin=1)
-                    .title("# Discussions")
-                    .legend(clipHeight=30, format="d"),
-                color,
-                tooltip=[
-                    alt.Tooltip("source:N",        title="Data source:"),
-                    alt.Tooltip("type_label:N",     title="Granularity:"),
-                    alt.Tooltip("avg_sentiment:Q",  title="Avg sentiment:", format=".1f"),
-                    alt.Tooltip("disc_cnt:Q",       title="# discussions:", format="~s"),
-                ],
-            )
-            .transform_calculate(type_label="datum.type + ': ' + datum.label")
+        alt.Chart(df_filtered)
+        .mark_circle(stroke="black", strokeWidth=1, strokeOpacity=0.4, size=80)
+        .encode(
+            alt.X("weighted_avg_sentiment:Q")
+                .title("Average sentiment" if category == "tourism" else "")
+                .scale(x_scale),
+            alt.Y("label:N")
+                .title(None)
+                .axis(alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
+            shared_size,                # ← replace old alt.Size(...)
+            color,
+            tooltip=[
+                alt.Tooltip("source:N",                       title="Data source:"),
+                alt.Tooltip("type_label:N",                   title="Granularity:"),
+                alt.Tooltip("weighted_avg_sentiment:Q",       title="Avg sentiment:", format=".2f"),
+                alt.Tooltip("disc_cnt:Q",                     title="# discussions:", format="~s"),
+            ],
         )
+        .transform_calculate(type_label="datum.type + ': ' + datum.label")
+    )
 
         vertical_lines = (
             alt.Chart(df_avg)
@@ -357,7 +389,7 @@ def _(alt, df, df_agg, mo):
                 x=alt.X("cat_avg:Q", scale=x_scale),
                 color=color,
                 tooltip=[
-                    alt.Tooltip("cat_avg:Q", title="Category avg:", format=".1f"),
+                    alt.Tooltip("cat_avg:Q", title="Category avg:", format=".2f"),
                     "source:N",
                 ],
             )
@@ -368,13 +400,13 @@ def _(alt, df, df_agg, mo):
             .mark_text(dy=-8, dx=12, fontSize=11, fontWeight="bold")
             .encode(
                 x=alt.X("cat_avg:Q", scale=x_scale),
-                text=alt.Text("cat_avg:Q", format=".1f"),
+                text=alt.Text("cat_avg:Q", format=".2f"),
                 color=color,
             )
         )
 
         return (
-            alt.layer(bg, horizontal_lines, dots, vertical_lines, avg_text)
+            alt.layer(bg, horizontal_lines, dots, vertical_lines, avg_text) # ad bg if needed
             .properties(
                 width=520,
                 height=alt.Step(32),
@@ -405,172 +437,24 @@ def _(alt, df, df_agg, mo):
             .resolve_scale(color="shared", size="shared")
         )
 
-
-    # ── Cell 7: make_drill — Option B (all categories, colored by category) ───────
-    # def make_drill(selected_label, current_type):
-    #     drill_type = "Board members" if current_type == "Discussion topics" else "Discussion topics"
-
-    #     if current_type == "Discussion topics":
-    #         # Selected a topic → show all members who discussed it, across all categories
-    #         df_drill = (
-    #             df[df["disc_topic_id"] == selected_label]
-    #             .groupby(["source", "industry_category", "person_name"])
-    #             .agg(avg_sentiment=("disc_person_sentiment", "mean"),
-    #                  disc_cnt=("discussion_id", "nunique"))
-    #             .reset_index()
-    #             .rename(columns={"person_name": "label"})
-    #         )
-    #     else:
-    #         # Selected a member → show all topics they discussed, across all categories
-    #         df_drill = (
-    #             df[df["person_name"] == selected_label]
-    #             .groupby(["source", "industry_category", "disc_topic_id"])
-    #             .agg(avg_sentiment=("disc_person_sentiment", "mean"),
-    #                  disc_cnt=("discussion_id", "nunique"))
-    #             .reset_index()
-    #             .rename(columns={"disc_topic_id": "label"})
-    #         )
-
-    #     if len(df_drill) == 0:
-    #         return None
-
-    #     # Sort y-axis: group by industry_category so fishing/mixed/tourism cluster together
-    #     label_order = (
-    #         df_drill
-    #         .drop_duplicates("label")
-    #         .sort_values(["industry_category", "label"])["label"]
-    #         .tolist()
-    #     )
-
-    #     # Pivot wide for connecting lines
-    #     df_drill_wide = (
-    #         df_drill
-    #         .pivot_table(index=["industry_category","label"], columns="source", values="avg_sentiment")
-    #         .reset_index()
-    #     )
-    #     df_drill_wide.columns.name = None
-    #     for col in ["board","journalist"]:
-    #         if col not in df_drill_wide.columns:
-    #             df_drill_wide[col] = float("nan")
-
-    #     # Category avg lines
-    #     df_drill_avg = (
-    #         df_drill
-    #         .groupby(["source","industry_category"])["avg_sentiment"]
-    #         .mean().reset_index()
-    #         .rename(columns={"avg_sentiment": "cat_avg"})
-    #     )
-
-    #     y_enc = alt.Y("label:N", title=None,
-    #                   sort=label_order,
-    #                   axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10))
-
-    #     # Background color by industry_category
-    #     bg =(
-    #     alt.Chart(df_drill_wide)
-    #     .mark_rect(opacity=0.15)
-    #     .encode(
-    #         y=alt.Y("label:N", sort=label_order, title=None,
-    #                 axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
-    #         fill=alt.Fill(                         # ← fill, not color
-    #             "industry_category:N",
-    #             scale=alt.Scale(
-    #                 domain=list(CAT_COLORS.keys()),
-    #                 range=list(CAT_COLORS.values()),
-    #             ),
-    #             legend=alt.Legend(title="Categories"),
-    #         ),
-    #     )
-    # )
-
-    #     # Connecting lines
-    #     h_lines = (
-    #     alt.Chart(df_drill_wide)
-    #     .mark_rule(strokeWidth=1.5, opacity=0.5, color="gray")
-    #     .encode(
-    #         x=alt.X("journalist:Q", scale=x_scale),
-    #         x2="board:Q",
-    #         y=alt.Y("label:N", sort=label_order, title=None),
-    #         tooltip=[
-    #             "label:N", "industry_category:N",
-    #             alt.Tooltip("journalist:Q", title="Journalist:", format=".3f"),
-    #             alt.Tooltip("board:Q",      title="Board:",      format=".3f"),
-    #         ],
-    #     )
-    # )
-
-    #     dots = (
-    #     alt.Chart(df_drill)
-    #     .mark_circle(stroke="black", strokeWidth=1, strokeOpacity=0.4, size=80)
-    #     .encode(
-    #         x=alt.X("avg_sentiment:Q").title("Average sentiment").scale(x_scale),
-    #         y=alt.Y("label:N", sort=label_order, title=None,
-    #                 axis=alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
-    #         color=source_color,                # ← shows source legend
-    #         size=alt.Size(
-    #             "disc_cnt:Q",
-    #             title="# Discussions",
-    #             scale=alt.Scale(domainMin=1),
-    #             legend=alt.Legend(clipHeight=30, format="d", values=[1, 2, 4, 6, 8, 10]),
-    #         ),
-    #         tooltip=[
-    #             alt.Tooltip("label:N",             title="Label:"),
-    #             alt.Tooltip("source:N",            title="Source:"),
-    #             alt.Tooltip("industry_category:N", title="Category:"),
-    #             alt.Tooltip("avg_sentiment:Q",     title="Avg sentiment:", format=".1f"),
-    #             alt.Tooltip("disc_cnt:Q",          title="# discussions:"),
-    #         ],
-    #     )
-    # )
-
-    #     # Vertical avg lines per source per category
-    #     v_lines = (
-    #     alt.Chart(df_drill_avg)
-    #     .mark_rule(strokeWidth=2, opacity=0.7, strokeDash=[4, 2])
-    #     .encode(
-    #         x=alt.X("cat_avg:Q", scale=x_scale),
-    #         color=source_color_no_legend,      # ← no legend
-    #         tooltip=[
-    #             alt.Tooltip("cat_avg:Q",           title="Category avg:", format=".1f"),
-    #             "source:N", "industry_category:N",
-    #         ],
-    #     )
-    # )
-
-    #     return (
-    #     alt.layer(bg, h_lines, dots, v_lines)
-    #     .resolve_legend(color="independent", size="independent")
-    #     .properties(
-    #             width=520,
-    #             height=alt.Step(32),
-    #             title=alt.Title(
-    #                 text=f"{selected_label}  —  breakdown by {drill_type} (all categories)",
-    #                 anchor="start", fontSize=13, fontWeight="bold",
-    #             )
-    #         )
-    #     )
     def make_drill(selected_label, current_type):
         drill_type = "Board members" if current_type == "Discussion topics" else "Discussion topics"
 
         # ── Build drill DataFrame ─────────────────────────────────────────────────
         if current_type == "Discussion topics":
-            df_drill = (
-                df[df["disc_topic_id"] == selected_label]
+            df_drill = (topic_member_agg[topic_member_agg["disc_topic_id"] == selected_label]
                 .groupby(["source", "industry_category", "person_name"])
-                .agg(avg_sentiment=("disc_person_sentiment", "mean"),
-                     disc_cnt=("discussion_id", "nunique"))
+                .apply(weighted_avg, include_groups=False)
                 .reset_index()
                 .rename(columns={"person_name": "label"})
-            )
+                       )
         else:
-            df_drill = (
-                df[df["person_name"] == selected_label]
+            df_drill = (topic_member_agg[topic_member_agg["person_name"] == selected_label]
                 .groupby(["source", "industry_category", "disc_topic_id"])
-                .agg(avg_sentiment=("disc_person_sentiment", "mean"),
-                     disc_cnt=("discussion_id", "nunique"))
+                .apply(weighted_avg, include_groups=False)
                 .reset_index()
                 .rename(columns={"disc_topic_id": "label"})
-            )
+                       )
 
         if len(df_drill) == 0:
             return None
@@ -579,19 +463,21 @@ def _(alt, df, df_agg, mo):
         def make_drill_lane(category, df_cat):
             df_wide = (
                 df_cat
-                .pivot_table(index=["label"], columns="source", values="avg_sentiment")
+                .pivot_table(index=["label"], columns="source", values="weighted_avg_sentiment")
                 .reset_index()
             )
             df_wide.columns.name = None
             for col in ["board", "journalist"]:
                 if col not in df_wide.columns:
                     df_wide[col] = float("nan")
+            def weighted_avg_by_cat(group):
+                return (group['weighted_sum_sentiment']).sum() / group['disc_cnt'].sum()
 
             df_avg = (
                 df_cat
-                .groupby("source")["avg_sentiment"]
-                .mean().reset_index()
-                .rename(columns={"avg_sentiment": "cat_avg"})
+                .groupby("source")
+                .apply(weighted_avg_by_cat, include_groups=False)
+                .reset_index(name="cat_avg")
             )
 
             # Background strips — same as primary chart (single vs overlapping source)
@@ -604,11 +490,12 @@ def _(alt, df, df_agg, mo):
                     y=alt.Y("label:N", title=None,
                             axis=alt.Axis(labelFontSize=12, domain=False,
                                           ticks=False, offset=10)),
-                    color=alt.condition(
-                        "datum.has_both",
-                        alt.value(BG_OVERLAPPING),
-                        alt.value(BG_SINGLE),
-                    ),
+                    color = alt.value(BG_OVERLAPPING)
+                    # color=alt.condition(
+                    #     "datum.has_both",
+                    #     alt.value(BG_OVERLAPPING),
+                    #     alt.value(BG_SINGLE),
+                    # ),
                 )
             )
 
@@ -630,35 +517,27 @@ def _(alt, df, df_agg, mo):
                 )
             )
 
-            # Dots
             dots = (
                 alt.Chart(df_cat)
                 .mark_circle(stroke="black", strokeWidth=1, strokeOpacity=0.4, size=80)
                 .encode(
-                    alt.X("avg_sentiment:Q")
+                    alt.X("weighted_avg_sentiment:Q")
                         .title("Average sentiment" if category == "tourism" else "")
                         .scale(x_scale),
                     alt.Y("label:N")
                         .title(None)
-                        .axis(alt.Axis(labelFontSize=12, domain=False,
-                                       ticks=False, offset=10)),
+                        .axis(alt.Axis(labelFontSize=12, domain=False, ticks=False, offset=10)),
                     color=source_color,
-                    size=alt.Size(
-                        "disc_cnt:Q",
-                        title="# Discussions",
-                        scale=alt.Scale(domainMin=1),
-                        legend=alt.Legend(clipHeight=30, format="d",
-                                          values=[1, 2, 4, 6, 8, 10]),
-                    ),
+                    size=shared_size,           # ← replace old alt.Size(...)
                     tooltip=[
-                        alt.Tooltip("label:N",             title=f"{drill_type}:"),
-                        alt.Tooltip("source:N",            title="Source:"),
-                        alt.Tooltip("industry_category:N", title="Category:"),
-                        alt.Tooltip("avg_sentiment:Q",     title="Avg sentiment:", format=".1f"),
-                        alt.Tooltip("disc_cnt:Q",          title="# discussions:"),
+                        alt.Tooltip("label:N",                        title=f"{drill_type}:"),
+                        alt.Tooltip("source:N",                       title="Source:"),
+                        alt.Tooltip("industry_category:N",            title="Category:"),
+                        alt.Tooltip("weighted_avg_sentiment:Q",       title="Avg sentiment:", format=".2f"),
+                        alt.Tooltip("disc_cnt:Q",                     title="# discussions:"),
                     ],
                 )
-            )
+    )
 
             # Vertical avg lines
             v_lines = (
@@ -668,7 +547,7 @@ def _(alt, df, df_agg, mo):
                     x=alt.X("cat_avg:Q", scale=x_scale),
                     color=source_color_no_legend,
                     tooltip=[
-                        alt.Tooltip("cat_avg:Q", title="Category avg:", format=".1f"),
+                        alt.Tooltip("cat_avg:Q", title="Category avg:", format=".2f"),
                         "source:N",
                     ],
                 )
@@ -680,13 +559,13 @@ def _(alt, df, df_agg, mo):
                 .mark_text(dy=-8, dx=12, fontSize=11, fontWeight="bold")
                 .encode(
                     x=alt.X("cat_avg:Q", scale=x_scale),
-                    text=alt.Text("cat_avg:Q", format=".1f"),
+                    text=alt.Text("cat_avg:Q", format=".2f"),
                     color=source_color_no_legend,
                 )
             )
 
             return (
-                alt.layer(bg, h_lines, dots, v_lines, avg_text)
+                alt.layer(bg, h_lines, dots, v_lines, avg_text) # add bg if needed
                 .properties(
                     width=520,
                     height=alt.Step(32),
@@ -761,7 +640,7 @@ def _(df_agg, mo, view_toggle):
 def _(label_select, make_drill, mo, view_toggle):
     # display drill-down chart
     if label_select.value == "— select —" or label_select.value is None:
-        output = mo.md("_👆 Select a topic or member above to see the full cross-category breakdown_")
+        output = mo.md("_👆 Select a discussion topic or board member above to see the full cross-category breakdown_")
     else:
         chart = make_drill(label_select.value, view_toggle.value)
         output = mo.as_html(chart) if chart is not None else mo.md("_No data found_")
