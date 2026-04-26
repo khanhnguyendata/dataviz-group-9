@@ -123,8 +123,21 @@ def _(events):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Pick a person and date range, brush the timeline or drag a rectangle on the map to cross-highlight entries.
-    Click a single point to focus one event (double-click to clear).
+    This tool provides an interactive exploration of relationships between people, places, and trips by combining temporal and spatial visualizations of entries from both datasets. It enables users to analyze movement patterns and interactions through a coordinated timeline and map view.
+
+The interface allows users to dynamically adjust the color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, offering flexible temporal exploration.
+
+Interactive selections further enhance analysis: users can highlight subsets directly, specific event on the timeline or within the map, with selections automatically reflected across both views. 
+Double-click to clear the selection.
+    
+    In the controle panel it is also possible to only show the entries repported by the board.
+
+    
+    
+    An live demo is avalible as [molab.marimo.io](https://molab.marimo.io/github/ErikLambrechts/dataviz-group-9/blob/erik/erik_marimo.py/wasm?show-code=false)
+    
+    
+    
     """)
     return
 
@@ -132,7 +145,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(events, mo):
     database_toggle = mo.ui.radio(
-        options=["Journalist", "Both datasets"],
+        options=["Goverment", "Both datasets"],
         value="Both datasets",
         label="Source",
     )
@@ -272,22 +285,36 @@ def _(alt, color_toggle, events, filtered_events):
 
     shape = alt.Shape(
         "display_database:N",
-        title="Source",
+        title="Entry",
         scale=alt.Scale(
-            domain=["A", "B", "BOTH"],
-            range=["circle", "diamond", "circle"]
+            domain=["B", "BOTH"],
+            range=[ "diamond", "circle"]
         ),
-        legend=alt.Legend(orient="top", direction="vertical"),
+        legend=alt.Legend(orient="top", direction="vertical",
+                            labelExpr="""
+            datum.label == 'B' ? 'Goverment dataset' :
+            datum.label == 'BOTH' ? 'Shared records' :
+            datum.label
+        """
+                          ),
     )
 
     strokeDash = alt.StrokeDash(
         "display_database:N",
-        title="Source",
+        title="Travel in in trip",
         scale=alt.Scale(
             domain=["A", "B"],
             range=[[1, 0], [6, 2]]
         ),
-        legend=alt.Legend(orient="top", direction="vertical"),
+        legend=alt.Legend(orient="top", direction="vertical"
+                          ,
+                            labelExpr="""
+            datum.label == 'A' ? 'Both goverment entries' :
+            datum.label == 'B' ? 'Atleast one none govement entry' :
+            datum.label
+        """
+
+                          ),
     )
 
     return (
