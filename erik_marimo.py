@@ -464,8 +464,9 @@ def _(
             both="isValid(datum.BOTH) ? datum.BOTH : 0",
             label=(
                 "'◆: ' + (datum.b < 10 ? ' ' : '') + datum.b + '   ' + "
-                "'●●: ' + (datum.both < 10 ? ' ' : '') + datum.both"
+                "'●: ' + (datum.both < 10 ? ' ' : '') + datum.both"
             ),
+
         )
         .mark_text(align="right", dy=15, fontSize=11, color="black")
         .encode(y=alt.Y("person:N", sort=all_people), x=alt.value(0), text="label:N")
