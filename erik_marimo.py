@@ -43,7 +43,7 @@ def _(Path, os, pd):
     return load_events, load_places
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(load_events, load_places, pd):
     events = load_events()
     places = load_places()
@@ -122,20 +122,20 @@ def _(events):
     return global_lat_domain, global_lon_domain
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- This tool provides an interactive exploration of relationships between people, places, and trips by combining temporal and spatial visualizations of data from both datasets. It enables users to analyze movement patterns and interactions through a coordinated timeline and map view.
+    This tool provides an interactive exploration of relationships between people, places, and trips by combining temporal and spatial visualizations of data from both datasets. It enables users to analyze movement patterns and interactions through a coordinated timeline and map view.
 
-The interface allows users to dynamically adjust color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, enabling flexible temporal exploration.
+    The interface allows users to dynamically adjust color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, enabling flexible temporal exploration.
 
-Interactive selections further enhance analysis: users can highlight subsets, a specific event on the timeline, or items within the map, which are automatically reflected across both views. Double-click to clear the selection.
+    Interactive selections further enhance analysis: users can highlight subsets, a specific event on the timeline, or items within the map, which are automatically reflected across both views. Double-click to clear the selection.
 
-Additionally, counts of entries from the government database and entries shared between both datasets are displayed in the timeline labels.
+    Additionally, counts of entries from the government database and entries shared between both datasets are displayed in the timeline labels.
 
-In the control panel, it is also possible to show only the entries reported by the board.
+    In the control panel, it is also possible to show only the entries reported by the board.
 
-A live demo is available at: [molab.marimo.io](https://molab.marimo.io/github/ErikLambrechts/dataviz-group-9/blob/erik/erik_marimo.py/wasm?show-code=false)
+    A live demo is available at: [molab.marimo.io](https://molab.marimo.io/github/ErikLambrechts/dataviz-group-9/blob/erik/erik_marimo.py/wasm?show-code=false)
     """)
     return
 
@@ -143,8 +143,8 @@ A live demo is available at: [molab.marimo.io](https://molab.marimo.io/github/Er
 @app.cell(hide_code=True)
 def _(events, mo):
     database_toggle = mo.ui.radio(
-        options=["Goverment", "Both datasets"],
-        value="Both datasets",
+        options=["Goverment", "Journalist"],
+        value="Journalist",
         label="Source",
     )
 
@@ -181,7 +181,7 @@ def _(events, mo):
     return color_toggle, database_toggle, day_toggle, end_date, start_date
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(database_toggle, day_toggle, end_date, events, pd, start_date):
     filtered_events = events
 
@@ -221,7 +221,7 @@ def _(database_toggle, day_toggle, end_date, events, pd, start_date):
     return filtered_events, timeline_end, timeline_start
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, color_toggle, events, filtered_events):
     UNKNOWN_TRIP = "unknown trip"
     UNKNOWN_PLACE = "unknown place"
@@ -264,7 +264,20 @@ def _(alt, color_toggle, events, filtered_events):
     )
 
     color = alt.condition(selection_person, base_color, alt.value("gray"))
+    return (
+        TIMELINE_HEIGHT,
+        all_people,
+        color,
+        df,
+        event_pick,
+        map_brush,
+        selection_person,
+        timeline_brush,
+    )
 
+
+@app.cell
+def _(alt):
     shape = alt.Shape(
         "display_database:N",
         title="Entry",
@@ -273,7 +286,7 @@ def _(alt, color_toggle, events, filtered_events):
             orient="top",
             direction="vertical",
             labelExpr="""
-            datum.label == 'B' ? 'Goverment dataset' :
+            datum.label == 'B' ? 'Journalist dataset' :
             datum.label == 'BOTH' ? 'Shared records' :
             datum.label
         """,
@@ -294,21 +307,10 @@ def _(alt, color_toggle, events, filtered_events):
         """,
         ),
     )
-    return (
-        TIMELINE_HEIGHT,
-        all_people,
-        color,
-        df,
-        event_pick,
-        map_brush,
-        selection_person,
-        shape,
-        strokeDash,
-        timeline_brush,
-    )
+    return shape, strokeDash
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     alt,
     color,
@@ -374,7 +376,7 @@ def _(
     return (trip_map,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     TIMELINE_HEIGHT,
     all_people,
@@ -461,8 +463,8 @@ def _(
             b="isValid(datum.B) ? datum.B : 0",
             both="isValid(datum.BOTH) ? datum.BOTH : 0",
             label=(
-                "'gov: ' + (datum.b < 10 ? ' ' : '') + datum.b + '   ' + "
-                "'shared: ' + (datum.both < 10 ? ' ' : '') + datum.both"
+                "'◆: ' + (datum.b < 10 ? ' ' : '') + datum.b + '   ' + "
+                "'●●: ' + (datum.both < 10 ? ' ' : '') + datum.both"
             ),
         )
         .mark_text(align="right", dy=15, fontSize=11, color="black")
@@ -485,7 +487,7 @@ def _(
     return (timeline,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, timeline, trip_map):
     # =====================
     # FINAL DASHBOARD
@@ -500,6 +502,16 @@ def _(alt, timeline, trip_map):
     )
 
     dashboard
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
     return
 
 
