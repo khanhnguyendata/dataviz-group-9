@@ -9,7 +9,7 @@ def load_config(path="config_erik.yaml"):
 
 def get_connection(db_path):
     conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA foreign_keys = ON;", uri=True)
     return conn
 
 def load_table(conn, table):

@@ -59,7 +59,7 @@ def _(Path, os, pd, sqlite3):
 @app.cell(hide_code=True)
 def _(DATA_DB_PATH, load_events, load_places, pd, sqlite3):
     if DATA_DB_PATH.exists():
-        with sqlite3.connect(DATA_DB_PATH) as conn:
+        with sqlite3.connect(DATA_DB_PATH, uri=True) as conn:
             events = load_events(conn)
             places = load_places(conn)
 
