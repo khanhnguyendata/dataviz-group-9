@@ -4,11 +4,34 @@ __generated_with = "0.23.0"
 app = marimo.App()
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
     mo.md(r"""
     # Trips explorer
     """)
+    return
+
+
+@app.cell
+def _():
+    # if filtered_events.empty:
+    #     md = mo.md("No entries in the current selection_person.")
+    # else:
+    #     total = len(filtered_events)
+    #     count_b = (filtered_events["source_presence"] == "B").sum()
+    #     count_both = (filtered_events["source_presence"] == "BOTH").sum()
+
+    #     md = mo.md(
+    #         f"""
+    # ### Selection_person summary
+
+    # - Total entries: **{total}**
+    # - Journalist dataset: **{count_b}**
+    # - Present in both datasets: **{count_both}**
+    # """
+    #     )
+
+    # md
     return
 
 
@@ -23,11 +46,10 @@ def _():
 
     return Path, alt, mo, os, pd
 
+
 @app.cell(hide_code=True)
 def _(Path, os, pd):
-    DATA_DIR = Path(
-        os.getenv("DVDS_TRIP_DATA_DIR", "data/trips")
-    )
+    DATA_DIR = Path(os.getenv("DVDS_TRIP_DATA_DIR", "data/trips"))
 
     def load_places() -> pd.DataFrame:
         path = DATA_DIR / "places.csv"
@@ -38,15 +60,14 @@ def _(Path, os, pd):
     def load_events() -> pd.DataFrame:
         path = DATA_DIR / "trip_entries.csv"
         if path.exists():
-            return pd.read_csv(path).rename(
-                columns={"person_name": "person"}
-            )
+            return pd.read_csv(path).rename(columns={"person_name": "person"})
         return pd.DataFrame()
 
-    return DATA_DIR, load_events, load_places
+    return load_events, load_places
 
-@app.cell(hide_code=True)
-def _(DATA_DIR, load_events, load_places):
+
+@app.cell
+def _(load_events, load_places, pd):
     events = load_events()
     places = load_places()
 
@@ -115,29 +136,30 @@ def _(events):
     lon_max = float(events["lon"].max())
     lat_min = float(events["lat"].min())
     lat_max = float(events["lat"].max())
-    global_lon_domain = [lon_min, lon_max] if lon_min != lon_max else [lon_min - 0.5, lon_max + 0.5]
-    global_lat_domain = [lat_min, lat_max] if lat_min != lat_max else [lat_min - 0.5, lat_max + 0.5]
+    global_lon_domain = (
+        [lon_min, lon_max] if lon_min != lon_max else [lon_min - 0.5, lon_max + 0.5]
+    )
+    global_lat_domain = (
+        [lat_min, lat_max] if lat_min != lat_max else [lat_min - 0.5, lat_max + 0.5]
+    )
     return global_lat_domain, global_lon_domain
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
     mo.md(r"""
     This tool provides an interactive exploration of relationships between people, places, and trips by combining temporal and spatial visualizations of entries from both datasets. It enables users to analyze movement patterns and interactions through a coordinated timeline and map view.
 
-The interface allows users to dynamically adjust the color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, offering flexible temporal exploration.
+    The interface allows users to dynamically adjust the color encoding, switching between individuals and zones. Data can be filtered by specifying a date range or focusing on a single day, offering flexible temporal exploration.
 
-Interactive selections further enhance analysis: users can highlight subsets directly, specific event on the timeline or within the map, with selections automatically reflected across both views. 
-Double-click to clear the selection.
-    
+    Interactive selections further enhance analysis: users can highlight subsets directly, specific event on the timeline or within the map, with selections automatically reflected across both views.
+    Double-click to clear the selection_person.
+
     In the controle panel it is also possible to only show the entries repported by the board.
 
-    
-    
+
+
     An live demo is avalible as [molab.marimo.io](https://molab.marimo.io/github/ErikLambrechts/dataviz-group-9/blob/erik/erik_marimo.py/wasm?show-code=false)
-    
-    
-    
     """)
     return
 
@@ -156,7 +178,6 @@ def _(events, mo):
         label="Color by",
     )
 
-
     min_day = events["event_time"].min().normalize()
     max_day = events["event_time"].max().normalize()
 
@@ -168,16 +189,12 @@ def _(events, mo):
         if "event_day" in events.columns
         else []
     )
-    day_toggle = mo.ui.dropdown(
-        options=["ALL", *days], value="ALL", label="Day zoom"
-    )
-
+    day_toggle = mo.ui.dropdown(options=["ALL", *days], value="ALL", label="Day zoom")
 
     controls = mo.hstack(
         [
             database_toggle,
             color_toggle,
-            # person_toggle,
             start_date,
             end_date,
             day_toggle,
@@ -195,7 +212,9 @@ def _(database_toggle, day_toggle, end_date, events, pd, start_date):
     if database_toggle.value != "Both datasets":
         value_map = {"A": "A", "Journalist": "B"}
         selected = value_map.get(database_toggle.value, "BOTH")
-        filtered_events = filtered_events[filtered_events["source_presence"] == selected]
+        filtered_events = filtered_events[
+            filtered_events["source_presence"] == selected
+        ]
 
     start_day = pd.Timestamp(start_date.value).normalize()
     end_day = pd.Timestamp(end_date.value).normalize()
@@ -206,11 +225,14 @@ def _(database_toggle, day_toggle, end_date, events, pd, start_date):
     end_ts = end_day + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
 
     filtered_events = filtered_events[
-        (filtered_events["event_time"] >= start_ts) & (filtered_events["event_time"] <= end_ts)
+        (filtered_events["event_time"] >= start_ts)
+        & (filtered_events["event_time"] <= end_ts)
     ].copy()
 
     if day_toggle.value != "ALL":
-        filtered_events = filtered_events[filtered_events["event_day"] == day_toggle.value].copy()
+        filtered_events = filtered_events[
+            filtered_events["event_day"] == day_toggle.value
+        ].copy()
         day_ts = pd.Timestamp(day_toggle.value)
         timeline_start = day_ts
         timeline_end = day_ts + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
@@ -238,31 +260,38 @@ def _(alt, color_toggle, events, filtered_events):
 
     all_people = sorted(events["person"].dropna().unique().tolist())
 
-    # --- color base ---
+    # --- color _base ---
     color_field = "person" if color_toggle.value == "person" else "zone"
     color_title = "Person" if color_toggle.value == "person" else "Zone"
 
+    # event_pick = alt.param(
+    #     name="event_pick",
+    #     select={"type": "point", "fields": ["event_key"], "on": "click", "clear": "dblclick"}
+    # )
 
-    map_brush = alt.selection_interval(encodings=["x", "y"])
-    timeline_brush = alt.selection_interval(encodings=["x"])
-    event_pick = alt.selection_point(fields=["event_key"], on="click", clear="dblclick")
+    # timeline_brush = alt.param(
+    #     name="timeline_brush",
+    #     select={"type": "interval", "encodings": ["x"]}
+    # )
 
-
-    # --- SELECTION (clickable legend/person) ---
-    selection = alt.selection_point(
-        fields=["person"],
-        bind="legend",        
-    
-        empty="all"          
+    # map_brush = alt.param(
+    #     name="map_brush",
+    #     select={"type": "interval", "encodings": ["x", "y"]}
+    # )
+    event_pick = alt.selection_point(
+        fields=["event_key"], on="click", clear="dblclick", resolve="global"
     )
 
-    selection_zone = alt.selection_point(
-        fields=["zone"],
-        bind="legend",         
-        empty="all"          
+    timeline_brush = alt.selection_interval(encodings=["x"], resolve="global")
+
+    map_brush = alt.selection_interval(encodings=["x", "y"], resolve="global")
+
+    # --- SELECTION_person (clickable legend/person) ---
+    selection_person = alt.selection_point(
+        fields=["person"], bind="legend", empty="all"
     )
 
-
+    selection_zone = alt.selection_point(fields=["zone"], bind="legend", empty="all")
 
     # --- CONDITIONAL COLOR ---
     base_color = alt.Color(
@@ -272,51 +301,37 @@ def _(alt, color_toggle, events, filtered_events):
         legend=alt.Legend(orient="top", direction="vertical"),
     )
 
-
-
-    color = alt.condition(
-    
-    
-        selection
-        ,
-        base_color,
-        alt.value("gray")   
-    )
+    color = alt.condition(selection_person, base_color, alt.value("gray"))
 
     shape = alt.Shape(
         "display_database:N",
         title="Entry",
-        scale=alt.Scale(
-            domain=["B", "BOTH"],
-            range=[ "diamond", "circle"]
-        ),
-        legend=alt.Legend(orient="top", direction="vertical",
-                            labelExpr="""
+        scale=alt.Scale(domain=["B", "BOTH"], range=["diamond", "circle"]),
+        legend=alt.Legend(
+            orient="top",
+            direction="vertical",
+            labelExpr="""
             datum.label == 'B' ? 'Goverment dataset' :
             datum.label == 'BOTH' ? 'Shared records' :
             datum.label
-        """
-                          ),
+        """,
+        ),
     )
 
     strokeDash = alt.StrokeDash(
         "display_database:N",
         title="Travel in in trip",
-        scale=alt.Scale(
-            domain=["A", "B"],
-            range=[[1, 0], [6, 2]]
-        ),
-        legend=alt.Legend(orient="top", direction="vertical"
-                          ,
-                            labelExpr="""
+        scale=alt.Scale(domain=["A", "B"], range=[[1, 0], [6, 2]]),
+        legend=alt.Legend(
+            orient="top",
+            direction="vertical",
+            labelExpr="""
             datum.label == 'A' ? 'Both goverment entries' :
             datum.label == 'B' ? 'Atleast one none govement entry' :
             datum.label
-        """
-
-                          ),
+        """,
+        ),
     )
-
     return (
         TIMELINE_HEIGHT,
         all_people,
@@ -324,7 +339,7 @@ def _(alt, color_toggle, events, filtered_events):
         df,
         event_pick,
         map_brush,
-        selection,
+        selection_person,
         shape,
         strokeDash,
         timeline_brush,
@@ -340,7 +355,7 @@ def _(
     global_lat_domain,
     global_lon_domain,
     map_brush,
-    selection,
+    selection_person,
     shape,
     strokeDash,
     timeline_brush,
@@ -349,39 +364,45 @@ def _(
     # MAP
     # =====================
     map_base = alt.Chart(df).encode(
-        x=alt.X(
-            "lon:Q", title="Longitude", scale=alt.Scale(domain=global_lon_domain)
-        ),
-        y=alt.Y(
-            "lat:Q", title="Latitude", scale=alt.Scale(domain=global_lat_domain)
-        ),
+        x=alt.X("lon:Q", title="Longitude", scale=alt.Scale(domain=global_lon_domain)),
+        y=alt.Y("lat:Q", title="Latitude", scale=alt.Scale(domain=global_lat_domain)),
         tooltip=["person", "zone", "trip_id", "place_name", "event_time"],
     )
 
-    map_background = map_base.mark_line(strokeWidth=1.5).encode(
+    map_background = map_base.mark_line(strokeWidth=0.5).encode(
         detail=["source_presence:N", "person:N", "event_day:N"],
         order="event_time:T",
-        color=color,
+        color=alt.value("gray"),
         strokeDash=strokeDash,
-        opacity=alt.value(0.6),
+        opacity=alt.value(0.4),
     ) + map_base.mark_point(size=30, filled=True).encode(
-        color=color, shape=shape
-        # , opacity=alt.value(0.6)
+        color=alt.value("gray"), shape=shape, opacity=alt.value(0.4)
+    ).add_params(
+        map_brush
     )
 
     map_highlight = (
-        map_base
-        .transform_filter(event_pick)
+        map_base.transform_filter(event_pick)
+        .transform_filter(timeline_brush)
+        .transform_filter(map_brush)
+        .mark_line(strokeWidth=1.5)
+        .encode(
+            detail=["source_presence:N", "person:N", "event_day:N"],
+            order="event_time:T",
+            color=color,
+            strokeDash=strokeDash,
+        )
+    ) + (
+        map_base.transform_filter(event_pick)
         .transform_filter(timeline_brush)
         .transform_filter(map_brush)
         .mark_point(size=100, filled=True, stroke="black", strokeWidth=0.5)
         .encode(color=color, shape=shape)
     )
 
-
     trip_map = (
         (map_background + map_highlight)
-        .add_params(map_brush, event_pick, selection)
+        .add_params(event_pick, selection_person)
         .properties(
             width="container",
             height=500,
@@ -400,16 +421,22 @@ def _(
     df,
     event_pick,
     map_brush,
-    selection,
+    selection_person,
     shape,
     timeline_brush,
     timeline_end,
     timeline_start,
 ):
     # =====================
-    # TIMELINE (FULL WIDTH + ALL PEOPLE)
+    # TIMELINE (FULL WIDTH + DUAL SOURCE LABEL COUNTS)
     # =====================
-    timeline_base = alt.Chart(df).encode(
+
+    _df = df.copy()
+
+    # ---------------------
+    # Base chart
+    # ---------------------
+    timeline_base = alt.Chart(_df).encode(
         x=alt.X(
             "event_time:T",
             title="Entry time",
@@ -418,30 +445,79 @@ def _(
         y=alt.Y(
             "person:N",
             title="Person",
-            sort=all_people,  # ensures all people always shown
+            sort=all_people,
         ),
-        tooltip=["person", "zone", "trip_id", "place_name", "event_time"],
+        tooltip=[
+            "person",
+            "zone",
+            "trip_id",
+            "place_name",
+            "event_time",
+            "display_database",
+        ],
     )
 
-    timeline_background = timeline_base.mark_point(size=30, filled=True).encode(
-        color=color, shape=shape
+    # ---------------------
+    # Background points
+    # ---------------------
+    timeline_background = (
+        timeline_base.mark_point(size=30, filled=True)
+        .encode(
+            color=alt.value("gray"),
+            shape=shape,
+            opacity=alt.value(0.4),
+        )
+        .add_params(timeline_brush)
     )
 
+    # ---------------------
+    # Highlighted points
+    # ---------------------
     timeline_highlight = (
         timeline_base.transform_filter(event_pick)
-        .transform_filter(timeline_brush)
         .transform_filter(map_brush)
+        .transform_filter(timeline_brush)
+        .transform_filter(selection_person)
         .mark_point(filled=True, size=100, stroke="black", strokeWidth=0.5)
         .encode(color=color, shape=shape)
     )
 
+    # ---------------------
+    # LABELS: two source counts per person
+    # ---------------------
+    timeline_labels = (
+        alt.Chart(_df)
+        .transform_filter(event_pick)
+        .transform_filter(map_brush)
+        .transform_filter(timeline_brush)
+        .transform_filter(selection_person)
+        .transform_aggregate(
+            total="count()", b_count="count()", groupby=["person", "display_database"]
+        )
+        .transform_pivot("display_database", value="b_count", groupby=["person"])
+        .transform_calculate(
+            b="isValid(datum.B) ? datum.B : 0",
+            both="isValid(datum.BOTH) ? datum.BOTH : 0",
+            label=(
+                "'gov: ' + (datum.b < 10 ? ' ' : '') + datum.b + '   ' + "
+                "'shared: ' + (datum.both < 10 ? ' ' : '') + datum.both"
+            ),
+        )
+        .mark_text(align="right", dy=15, fontSize=11, color="black")
+        .encode(y=alt.Y("person:N", sort=all_people), x=alt.value(0), text="label:N")
+    )
+
+    # ---------------------
+    # FINAL COMPOSITION
+    # ---------------------
     timeline = (
-        (timeline_background + timeline_highlight)
-        .add_params(timeline_brush, event_pick, selection)
+        (timeline_background + timeline_highlight + timeline_labels)
+        .add_params(event_pick, selection_person)
         .properties(
-            width="container",  # FULL WIDTH
+            width="container",
             height=TIMELINE_HEIGHT,
             title="Entry timeline",
+            # padding={"left": 140}
         )
     )
     return (timeline,)
@@ -458,7 +534,6 @@ def _(alt, timeline, trip_map):
         .resolve_legend(color="shared", shape="shared")
         .properties(
             autosize="fit-x",
-        
         )
     )
 
