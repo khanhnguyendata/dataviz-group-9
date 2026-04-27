@@ -878,28 +878,65 @@ def _(mo):
         item.line.classList.add("active");
       }
     }
-    // Transitive: for each selected person, highlight places reachable via plans
+    const addLinkedKey = (targetKey, directNeighbors) => {
+      if (selectedKeys.has(targetKey) || directNeighbors.has(targetKey)) return;
+      const targetRow = elementForKey(targetKey);
+      if (targetRow) targetRow.classList.add("linked");
+    };
+    // Transitive highlighting across the third table (people <-> plans <-> places)
     for (const key of selectedKeys) {
       const r = elementForKey(key);
-      if (!r || r.dataset.table !== "people") continue;
+      if (!r) continue;
       const nbrs = adjacency.get(key) || new Set();
-      const bridgedPlaceKeys = new Set();
-      for (const planKey of nbrs) {
-        if (!planKey.startsWith("plans\x00")) continue;
-        const places = planPlaces.get(planKey);
-        if (!places) continue;
-        for (const placeKey of places) {
-          if (placeKey === key) continue;
-          if (!selectedKeys.has(placeKey) && !nbrs.has(placeKey)) {
-            const pr = elementForKey(placeKey);
-            if (pr) pr.classList.add("linked");
+      if (r.dataset.table === "people") {
+        const bridgedPlaceKeys = new Set();
+        for (const planKey of nbrs) {
+          if (!planKey.startsWith("plans\x00")) continue;
+          const places = planPlaces.get(planKey);
+          if (!places) continue;
+          for (const placeKey of places) {
+            addLinkedKey(placeKey, nbrs);
+            bridgedPlaceKeys.add(placeKey);
           }
-          bridgedPlaceKeys.add(placeKey);
         }
-      }
-      for (const item of edgeLines) {
-        if (item.aTable === "plans" && item.bTable === "places") {
-          if (nbrs.has(item.a) && bridgedPlaceKeys.has(item.b)) {
+        for (const item of edgeLines) {
+          if (item.aTable === "plans" && item.bTable === "places") {
+            if (nbrs.has(item.a) && bridgedPlaceKeys.has(item.b)) {
+              item.line.classList.add("active");
+            }
+          }
+        }
+      } else if (r.dataset.table === "places") {
+        const bridgedPeopleKeys = new Set();
+        for (const planKey of nbrs) {
+          if (!planKey.startsWith("plans\x00")) continue;
+          const people = planPeople.get(planKey);
+          if (!people) continue;
+          for (const peopleKey of people) {
+            addLinkedKey(peopleKey, nbrs);
+            bridgedPeopleKeys.add(peopleKey);
+          }
+        }
+        for (const item of edgeLines) {
+          if (item.aTable === "plans" && item.bTable === "people") {
+            if (nbrs.has(item.a) && bridgedPeopleKeys.has(item.b)) {
+              item.line.classList.add("active");
+            }
+          }
+        }
+      } else if (r.dataset.table === "plans") {
+        const bridgedPeopleKeys = planPeople.get(key) || new Set();
+        const bridgedPlaceKeys = planPlaces.get(key) || new Set();
+        for (const peopleKey of bridgedPeopleKeys) addLinkedKey(peopleKey, nbrs);
+        for (const placeKey of bridgedPlaceKeys) addLinkedKey(placeKey, nbrs);
+        for (const item of edgeLines) {
+          const isPeoplePlaceEdge =
+            (item.aTable === "people" && item.bTable === "places") ||
+            (item.aTable === "places" && item.bTable === "people");
+          if (!isPeoplePlaceEdge) continue;
+          const peopleKey = item.aTable === "people" ? item.a : item.b;
+          const placeKey = item.aTable === "places" ? item.a : item.b;
+          if (bridgedPeopleKeys.has(peopleKey) && bridgedPlaceKeys.has(placeKey)) {
             item.line.classList.add("active");
           }
         }
