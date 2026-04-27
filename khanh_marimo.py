@@ -16,20 +16,18 @@ def _():
 @app.cell
 def _(mo):
     from collections import Counter
-    from pathlib import Path
     import html as _html
     import json
 
     import pandas as pd
 
-    ROOT = Path(__file__).resolve().parent
-    BOARD = ROOT / "data" / "Collected_by_the_Government"
-    JOURNAL = ROOT / "data" / "Collected_by_the_Journalist"
+    BOARD_DIR = "data/Collected_by_the_Government/"
+    JOURNAL_DIR = "data/Collected_by_the_Journalist/"
 
     TABLES = ["people", "plans", "places"]
     GROUP_COLS = {"people": "role", "plans": "plan_type", "places": "zone"}
 
-    def read_csv(path: Path) -> pd.DataFrame:
+    def read_csv(path: str) -> pd.DataFrame:
         return pd.read_csv(path, dtype=str, keep_default_na=False)
 
     def group_value(table: str, row: pd.Series) -> str:
@@ -41,8 +39,8 @@ def _(mo):
         return raw
 
     # Build plan_id -> topic short name (using the journalist superset).
-    _plan_topic_df = read_csv(JOURNAL / "plan_topics.csv").merge(
-        read_csv(JOURNAL / "topics.csv"), on="topic_id", how="left"
+    _plan_topic_df = read_csv(JOURNAL_DIR + "plan_topics.csv").merge(
+        read_csv(JOURNAL_DIR + "topics.csv"), on="topic_id", how="left"
     )
     PLAN_TOPIC = {
         str(pid).strip(): str(lt).strip()
@@ -50,7 +48,7 @@ def _(mo):
     }
 
     # Build plan_id -> earliest meeting number so plans sort by when they appeared
-    _mp_df = read_csv(JOURNAL / "meeting_plans.csv")
+    _mp_df = read_csv(JOURNAL_DIR + "meeting_plans.csv")
     _mp_df["_num"] = pd.to_numeric(
         _mp_df["meeting_id"].str.extract(r"(\d+)", expand=False), errors="coerce"
     ).fillna(999)
@@ -101,12 +99,12 @@ def _(mo):
             return f"{emoji} {str(row['long_title']).strip()}"
         return "?"
 
-    people_b = read_csv(BOARD / "people.csv")
-    people_j = read_csv(JOURNAL / "people.csv")
-    plans_b = read_csv(BOARD / "plans.csv")
-    plans_j = read_csv(JOURNAL / "plans.csv")
-    places_b = read_csv(BOARD / "places.csv")
-    places_j = read_csv(JOURNAL / "places.csv")
+    people_b = read_csv(BOARD_DIR + "people.csv")
+    people_j = read_csv(JOURNAL_DIR + "people.csv")
+    plans_b = read_csv(BOARD_DIR + "plans.csv")
+    plans_j = read_csv(JOURNAL_DIR + "plans.csv")
+    places_b = read_csv(BOARD_DIR + "places.csv")
+    places_j = read_csv(JOURNAL_DIR + "places.csv")
 
     pb, p_only_b, p_only_j = classify_by_pk("people_id", people_b, people_j)
     plb, pl_only_b, pl_only_j = classify_by_pk("plan_id", plans_b, plans_j)
@@ -167,8 +165,8 @@ def _(mo):
 
     # --- per-junction edge extraction --------------------------------------
 
-    def plan_people_edges(folder: Path) -> set[tuple[str, str]]:
-        df = read_csv(folder / "plan_people_participations.csv")
+    def plan_people_edges(folder: str) -> set[tuple[str, str]]:
+        df = read_csv(folder + "plan_people_participations.csv")
         out: set[tuple[str, str]] = set()
         for _, r in df.iterrows():
             plan_id = str(r["plan_id"]).strip()
@@ -177,8 +175,8 @@ def _(mo):
                 out.add((plan_id, people_id))
         return out
 
-    def travel_link_edges(folder: Path) -> set[tuple[str, str]]:
-        df = read_csv(folder / "travel_links.csv")
+    def travel_link_edges(folder: str) -> set[tuple[str, str]]:
+        df = read_csv(folder + "travel_links.csv")
         out: set[tuple[str, str]] = set()
         for _, r in df.iterrows():
             plan_id = str(r["plan_id"]).strip()
@@ -187,10 +185,10 @@ def _(mo):
                 out.add((plan_id, place_id))
         return out
 
-    def people_place_trips(folder: Path) -> dict[tuple[str, str], set[str]]:
+    def people_place_trips(folder: str) -> dict[tuple[str, str], set[str]]:
         """(people_id, place_id) -> set of trip_ids that witness the visit."""
-        tp = read_csv(folder / "trip_people.csv")
-        tpl = read_csv(folder / "trip_places.csv")
+        tp = read_csv(folder + "trip_people.csv")
+        tpl = read_csv(folder + "trip_places.csv")
         merged = tp.merge(tpl, on="trip_id", how="inner", suffixes=("_p", "_q"))
         out: dict[tuple[str, str], set[str]] = {}
         for _, r in merged.iterrows():
@@ -201,11 +199,11 @@ def _(mo):
                 out.setdefault((people_id, place_id), set()).add(trip_id)
         return out
 
-    def plan_attributable_set(folder: Path) -> set[tuple[str, str]]:
+    def plan_attributable_set(folder: str) -> set[tuple[str, str]]:
         """(people_id, place_id) pairs reachable via some plan P that rosters the
         person AND whose travel_links include the place."""
-        ppp = read_csv(folder / "plan_people_participations.csv")
-        tl = read_csv(folder / "travel_links.csv")
+        ppp = read_csv(folder + "plan_people_participations.csv")
+        tl = read_csv(folder + "travel_links.csv")
         joined = ppp[["plan_id", "people_id"]].merge(
             tl[["plan_id", "place_id"]], on="plan_id", how="inner"
         )
@@ -217,15 +215,15 @@ def _(mo):
                 out.add((people_id, place_id))
         return out
 
-    pp_board = plan_people_edges(BOARD)
-    pp_journ = plan_people_edges(JOURNAL)
-    tl_board = travel_link_edges(BOARD)
-    tl_journ = travel_link_edges(JOURNAL)
-    trips_board = people_place_trips(BOARD)
-    trips_journ = people_place_trips(JOURNAL)
+    pp_board = plan_people_edges(BOARD_DIR)
+    pp_journ = plan_people_edges(JOURNAL_DIR)
+    tl_board = travel_link_edges(BOARD_DIR)
+    tl_journ = travel_link_edges(JOURNAL_DIR)
+    trips_board = people_place_trips(BOARD_DIR)
+    trips_journ = people_place_trips(JOURNAL_DIR)
 
     # Journalist is the superset, so use its plan-attribution set as the canonical reference.
-    plan_attr = plan_attributable_set(JOURNAL)
+    plan_attr = plan_attributable_set(JOURNAL_DIR)
 
     # plan_id -> Title-Cased plan_type (used to decide dotted vs solid on plans<->people edges)
     PLAN_TYPE_MAP = {
