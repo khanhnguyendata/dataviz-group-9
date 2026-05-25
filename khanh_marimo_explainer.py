@@ -431,9 +431,8 @@ def _(mo):
     )
 
     title_html = (
-        'Clear bias in visits: all <span class="t-ind">fishing sites</span> are planned but unvisited '
-        'by board members,<br>'
-        'while some <span class="t-tour">tourism sites</span> are regularly visited outside of plans.'
+        'Clear bias in visits: no <span class="t-ind">fishing sites</span> are visited by board members despite being planned,<br>'
+        'while some <span class="t-tour">tourism sites</span> are visited by many members outside of plans.'
     )
     footnote_html = (
         "Industrial &amp; Tourism sites only \u00b7 Unnamed places removed \u00b7 Source: journalist data"
