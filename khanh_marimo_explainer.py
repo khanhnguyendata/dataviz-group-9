@@ -210,7 +210,20 @@ def _(mo):
         )
 
     import json as _json
-    payload = _json.dumps({"edges": edges}, ensure_ascii=False)
+    industrial_entries = [e for e in place_entries if e["zone"] == "industrial"]
+    tourism_entries    = [e for e in place_entries if e["zone"] == "tourism"]
+    callout_ids: dict[str, str] = {}
+    for e in place_entries:
+        if e["label"] == "Harbor Route Solutions":
+            callout_ids["ind"] = e["id"]
+        elif e["label"] == "The Bait & Stich":
+            callout_ids["tour"] = e["id"]
+    if industrial_entries:
+        callout_ids["ind_anchor"]  = industrial_entries[-1]["id"]
+    if tourism_entries:
+        callout_ids["tour_anchor"] = tourism_entries[-1]["id"]
+
+    payload = _json.dumps({"edges": edges, "callouts": callout_ids}, ensure_ascii=False)
 
     # ----------------------------------------------------- bullet SVG helper
     def bullet_svg(entry: dict, annotate: bool = False, annotate_tour: bool = False) -> str:
@@ -702,7 +715,32 @@ def _(mo):
   overlay.appendChild(neutralFrag);
   overlay.appendChild(accentFrag);
 
+  const CALLOUTS = [
+    {
+      id:           DATA.callouts.ind,
+      textAnchorId: DATA.callouts.ind_anchor,
+      lines: [
+        "Harbor Route Solutions",
+        "are planned for visit by 2 members,",
+        "yet visited by none of them."
+      ],
+      color: "__IND_INK__",
+    },
+    {
+      id:           DATA.callouts.tour,
+      textAnchorId: DATA.callouts.tour_anchor,
+      lines: [
+        "The Bait & Stich are planned for",
+        "visit by 2 members only,",
+        "yet visited by all 6 members."
+      ],
+      color: "__TOUR_INK__",
+    },
+  ];
+
   function layout() {
+    overlay.querySelectorAll(".callout-g").forEach(g => g.remove());
+
     const cRect = columns.getBoundingClientRect();
     overlay.setAttribute("width", cRect.width);
     overlay.setAttribute("height", cRect.height);
@@ -728,6 +766,63 @@ def _(mo):
                 " " + (x2 - cp) + "," + yb +
                 " " + x2 + "," + yb;
       item.path.setAttribute("d", d);
+    }
+
+    const bulletCol    = columns.querySelector('.col[data-table="bullet"]');
+    const blRect       = bulletCol.getBoundingClientRect();
+    const xBulletLeft  = blRect.left  - cRect.left;
+    const xPlacesRight = plRect.right - cRect.left;
+
+    const FONT   = "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif";
+    const LINE_H = 13;
+    const TEXT_X = xBulletLeft + 120;
+
+    for (const spec of CALLOUTS) {
+      const targetEl = placeEls.get(spec.id);
+      const anchorEl = placeEls.get(spec.textAnchorId);
+      if (!targetEl || !anchorEl) continue;
+
+      const targetMidY = targetEl.getBoundingClientRect().top - cRect.top
+                       + targetEl.getBoundingClientRect().height / 2;
+      const anchorMidY = anchorEl.getBoundingClientRect().top - cRect.top
+                       + anchorEl.getBoundingClientRect().height / 2;
+      const topY = anchorMidY - ((spec.lines.length - 1) / 2) * LINE_H;
+
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "callout-g");
+
+      const txt = document.createElementNS(SVG_NS, "text");
+      txt.setAttribute("text-anchor", "start");
+      txt.setAttribute("font-size", "10");
+      txt.setAttribute("font-family", FONT);
+      txt.setAttribute("fill", spec.color);
+      txt.setAttribute("font-weight", "600");
+      spec.lines.forEach((line, i) => {
+        const ts = document.createElementNS(SVG_NS, "tspan");
+        ts.setAttribute("x", TEXT_X);
+        ts.setAttribute("y", topY + i * LINE_H);
+        ts.textContent = line;
+        txt.appendChild(ts);
+      });
+      g.appendChild(txt);
+
+      const ln = document.createElementNS(SVG_NS, "line");
+      ln.setAttribute("x1", TEXT_X - 2);
+      ln.setAttribute("y1", anchorMidY);
+      ln.setAttribute("x2", xPlacesRight);
+      ln.setAttribute("y2", targetMidY);
+      ln.setAttribute("stroke", spec.color);
+      ln.setAttribute("stroke-width", "1");
+      g.appendChild(ln);
+
+      const dot = document.createElementNS(SVG_NS, "circle");
+      dot.setAttribute("cx", xPlacesRight);
+      dot.setAttribute("cy", targetMidY);
+      dot.setAttribute("r", "2");
+      dot.setAttribute("fill", spec.color);
+      g.appendChild(dot);
+
+      overlay.appendChild(g);
     }
   }
 
